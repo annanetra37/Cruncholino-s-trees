@@ -106,12 +106,15 @@ export async function reverseGeocode(
       return { address: normalise(payload), raw: payload, provider: env.GEOCODING_PROVIDER };
     } catch (error) {
       const lastAttempt = attempt === 1;
+      // The message, not the Error: a provider timeout or 403 is an expected
+      // outcome here, and its stack is the same three frames every time. Two
+      // stack traces per tree would drown the log this is meant to explain.
       logger.warn('reverse geocode attempt failed', {
         attempt: attempt + 1,
         latitude,
         longitude,
         provider: env.GEOCODING_PROVIDER,
-        error,
+        reason: error instanceof Error ? error.message : String(error),
       });
       if (lastAttempt) return null;
     }

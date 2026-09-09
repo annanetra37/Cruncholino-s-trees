@@ -105,9 +105,9 @@ healthy `/api/health` against a real database.
 
 | Task | Status | Notes |
 |---|---|---|
-| T10.1 Unit tests | Done | 43 tests: filter parsing, SQL building, geocode normalisation, cache keys, authorisation, rate limiting, revision diffs |
+| T10.1 Unit tests | Done | 53 tests: filter parsing, SQL building, geocode normalisation, cache keys, authorisation, rate limiting, revision diffs |
 | T10.2 Integration tests | Done | 10 tests against real Postgres + PostGIS |
-| T10.3 E2E | Done | Playwright, both critical paths, mobile and desktop projects |
+| T10.3 E2E | Done | Playwright, both critical paths, mobile and desktop projects — 18 tests, all passing, including the capture flow completing while the geocoder returns 403 |
 | T10.4 Error tracking | **Not done** | No Sentry. Structured logs carry request ids; wiring Sentry is a dependency and a DSN, and is the first thing to add before real traffic |
 | T10.5 Structured logging | Done | One JSON line per request, request id threaded through and returned in `x-request-id` |
 | T10.6 `/api/health` | Done | Checks the database; wired to Railway's healthcheck |

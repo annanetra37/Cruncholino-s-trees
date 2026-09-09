@@ -32,22 +32,29 @@ type AppClaims = {
 const providers: NextAuthConfig['providers'] = [];
 
 /**
- * The ids the sign-in page needs. They are read back off the provider objects
- * rather than assumed: Auth.js does not necessarily keep the `id` passed in —
- * the Credentials provider reports itself as `credentials` whatever you call
- * it — and a hard-coded guess here shows the user "no sign-in method is
- * configured" on a perfectly working deployment.
+ * Provider ids are declared here and used both to register the provider and to
+ * drive the sign-in page, so the two can never disagree.
+ *
+ * They cannot be read back off the provider object: `Credentials({ id })`
+ * returns a config whose `id` is still the factory default until Auth.js
+ * normalises it, so trusting `provider.id` sends the browser to a callback URL
+ * that does not exist and the user back to /signin with no explanation.
  */
+const EMAIL_PROVIDER_ID = 'nodemailer';
+const DEV_PROVIDER_ID = 'dev-login';
+
 let emailProviderId: string | null = null;
 let devProviderId: string | null = null;
 
 if (env.EMAIL_SERVER) {
-  const provider = Nodemailer({
-    server: env.EMAIL_SERVER,
-    from: env.EMAIL_FROM,
-  });
-  emailProviderId = provider.id ?? 'nodemailer';
-  providers.push(provider);
+  providers.push(
+    Nodemailer({
+      id: EMAIL_PROVIDER_ID,
+      server: env.EMAIL_SERVER,
+      from: env.EMAIL_FROM,
+    }),
+  );
+  emailProviderId = EMAIL_PROVIDER_ID;
 }
 
 /**
@@ -58,7 +65,7 @@ if (env.EMAIL_SERVER) {
  */
 if (env.AUTH_DEV_LOGIN && env.NODE_ENV !== 'production') {
   const provider = Credentials({
-    id: 'dev-login',
+    id: DEV_PROVIDER_ID,
     name: 'Developer sign-in',
     credentials: { email: { label: 'Email', type: 'email' } },
     async authorize(credentials) {
@@ -76,8 +83,8 @@ if (env.AUTH_DEV_LOGIN && env.NODE_ENV !== 'production') {
     },
   });
 
-  devProviderId = provider.id ?? 'credentials';
   providers.push(provider);
+  devProviderId = DEV_PROVIDER_ID;
 }
 
 export const authConfig: NextAuthConfig = {

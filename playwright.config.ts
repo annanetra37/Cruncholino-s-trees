@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number.parseInt(process.env.E2E_PORT ?? '3210', 10);
-const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
+const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
 
 /**
  * T10.3 — the two critical paths, in a real browser.
