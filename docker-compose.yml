@@ -1,0 +1,26 @@
+# T1.3 — the local development database.
+#
+# The image matters: Railway's stock Postgres template has no PostGIS, and
+# neither does the plain `postgres` image. Developing against one and deploying
+# against the other is how you discover ST_DWithin is missing in production.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: cruncholino-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trees
+      POSTGRES_PASSWORD: trees
+      POSTGRES_DB: trees
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U trees -d trees']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  db-data:

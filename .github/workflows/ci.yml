@@ -1,0 +1,123 @@
+# T1.1 / T10.x — lint, typecheck, test, and prove the migrations still apply.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://trees:trees@localhost:5432/trees_test
+  AUTH_SECRET: ci-secret-value-at-least-16-chars
+  SKIP_ENV_VALIDATION: '1'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # PostGIS, not plain Postgres: CI that cannot run ST_DWithin would pass
+        # on a change that breaks every spatial query in production.
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: trees
+          POSTGRES_PASSWORD: trees
+          POSTGRES_DB: trees_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trees -d trees_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Apply migrations
+        run: pnpm exec prisma migrate deploy
+
+      - name: Check for schema drift
+        # Catches the case where someone edits schema.prisma and forgets the
+        # migration — which only surfaces on deploy otherwise.
+        run: pnpm exec prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code
+
+      - name: Seed
+        run: pnpm db:seed
+
+      - name: Unit and integration tests
+        run: pnpm test
+
+      - name: Dependency audit
+        # Advisory: a new advisory against a transitive dependency should be
+        # visible in the PR without blocking an unrelated change from merging.
+        run: pnpm audit --audit-level high || true
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: check
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: trees
+          POSTGRES_PASSWORD: trees
+          POSTGRES_DB: trees_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trees -d trees_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec prisma migrate deploy
+      - run: pnpm db:seed
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+        env:
+          AUTH_DEV_LOGIN: 'true'
+          NODE_ENV: test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

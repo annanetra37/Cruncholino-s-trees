@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+
+/*
+ * Condition colours come from Paul Tol's qualitative palette: they stay
+ * distinguishable under deuteranopia and protanopia, which a naive
+ * red/amber/green ramp does not. Colour is never the only channel anyway —
+ * markers also differ by shape (species category) and size (age band).
+ */
+@theme {
+  --color-condition-good: #117733;
+  --color-condition-fair: #ddcc77;
+  --color-condition-poor: #cc6677;
+  --color-condition-dead: #555555;
+  --color-condition-unknown: #88ccee;
+
+  --color-bark: #4a3728;
+  --color-leaf: #2f6b3f;
+  --color-leaf-dark: #1f4a2b;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+/*
+ * The capture flow is used outdoors, one-handed, in sunlight. 48px is the
+ * smallest target that is reliably hittable with a thumb while standing up.
+ */
+/*
+ * Tailwind 4 resolves `@apply` against utilities only, so these component
+ * classes spell out their utilities rather than composing each other.
+ *
+ * 48px minimum height (min-h-12) is not decoration: the capture flow is used
+ * outdoors, one-handed, in sunlight, and anything smaller is missed.
+ */
+.tap-target {
+  @apply min-h-12 px-4 py-3 text-base;
+}
+
+.field-label {
+  @apply block text-sm font-semibold text-stone-700 mb-1.5;
+}
+
+.field-input {
+  @apply w-full rounded-lg border border-stone-300 bg-white px-3 py-3 text-base
+         shadow-xs outline-none transition
+         focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/30;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg font-semibold
+         transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-4 py-3
+         text-base font-semibold transition disabled:cursor-not-allowed disabled:opacity-50
+         bg-emerald-700 text-white hover:bg-emerald-800 active:bg-emerald-900;
+}
+
+.btn-secondary {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-4 py-3
+         text-base font-semibold transition disabled:cursor-not-allowed disabled:opacity-50
+         border border-stone-300 bg-white text-stone-800 hover:bg-stone-100;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm
+         font-semibold text-stone-700 transition hover:bg-stone-200
+         disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.chip-off {
+  @apply inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border
+         px-3 py-1.5 text-sm font-medium transition
+         border-stone-300 bg-white text-stone-700 hover:border-stone-400;
+}
+
+.chip-on {
+  @apply inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border
+         px-3 py-1.5 text-sm font-medium transition
+         border-emerald-700 bg-emerald-700 text-white;
+}
+
+.card {
+  @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+}
+
+/* MapLibre's stylesheet assumes it owns the box; keep it inside ours. */
+.maplibregl-map {
+  font: inherit;
+}
+
+.maplibregl-popup-content {
+  @apply rounded-lg px-3 py-2 text-sm shadow-lg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
