@@ -1,6 +1,9 @@
 # Decisions
 
-What was decided while building this, what it cost, and what is still open.
+What was decided while building this, and what it cost.
+
+The six questions the spec left open (§4) are answered below, after the
+decisions that were made while building.
 
 ---
 
@@ -62,76 +65,109 @@ in one place — `buildTreeWhere` — so no read path can forget it.
 
 ---
 
-## Open questions (from §4 of the spec)
+## Answered (§4 of the spec)
 
-These need a person, not a default. Where the code has to do *something*, it
-does the reversible thing and puts the switch in an environment variable.
+All six are settled. Where a decision needed code rather than a flag, the code
+is in place and the flag records the choice.
 
-### 1. Public dashboard, or login-gated?
+### 1. Login-gated, not public
 
-**Currently:** `PUBLIC_READ=true`, `FUZZ_PUBLIC_COORDINATES=false`.
+**`PUBLIC_READ=false`.** Tree locations — including trees in private gardens —
+are visible only to signed-in members.
 
-With public read on, the coordinates of trees on private land are public data.
-Three positions are supported without a code change:
+What that changes, in the code rather than in principle:
 
-| Setting | Effect |
-|---|---|
-| `PUBLIC_READ=true` | Anyone can browse the map at full precision |
-| `PUBLIC_READ=true` + `FUZZ_PUBLIC_COORDINATES=true` | Signed-out viewers see coordinates rounded to ~110 m; signed-in users see the real position |
-| `PUBLIC_READ=false` | The dashboard and the API require an account |
+- `/dashboard`, `/add`, `/my-trees` and `/admin` redirect an anonymous visitor
+  to `/signin`.
+- `GET /api/trees`, `/api/trees/geojson`, `/api/trees/stats`,
+  `/api/trees/:id` and `/api/filters/locations` return 401 without a session.
+- The home page stays public but shows only aggregate counts: how many trees,
+  how many species, how many places. No individual tree and no coordinate is
+  reachable from it.
 
-Fuzzing is applied at serialisation, so the database keeps full precision and
-the decision stays reversible. It does *not* protect against a determined
-scraper correlating many fuzzed points — if the exact locations are genuinely
-sensitive, gate the dashboard.
+Coordinate fuzzing (`FUZZ_PUBLIC_COORDINATES`) is kept but has no effect while
+the dashboard is gated — there are no signed-out viewers to protect. It is
+there for the day someone wants to open the map up with a privacy margin
+rather than all at once.
 
-### 2. Geocoding provider and budget
+### 2. Nominatim — free, no key, no account
 
-**Currently:** Nominatim, throttled to one request per second.
+**`GEOCODING_PROVIDER=nominatim`.** OpenStreetMap's own geocoder. It costs
+nothing, needs no key, and gives the best address detail for Armenia of the
+free options.
 
-Nominatim's usage policy forbids heavy production use. `GEOCODING_PROVIDER`
-switches to MapTiler with a key; both response shapes are normalised in
-`src/lib/geocode/normalise.ts` and covered by tests. The coordinate cache means
-the bill scales with distinct ~11 m locations, not with trees, so an orchard
-survey costs far less than the tree count suggests. Somebody still has to pick a
-provider and set a monthly cap.
+Its usage policy caps requests at one per second and forbids bulk use. Two
+things already in the code keep this app well inside that:
 
-### 3. Immediate publish, or review first?
+- The outbound throttle (`GEOCODING_MIN_INTERVAL_MS=1100`) serialises calls.
+- The coordinate cache keys on the position rounded to ~11 m, so the bill is
+  paid per *place*, not per tree. A surveyor working down one street makes one
+  call, not forty.
 
-**Currently:** `MODERATION_ENABLED=false` — submissions publish immediately.
+**Photon** (`GEOCODING_PROVIDER=photon`) is implemented as the second free
+option: Komoot's OSM geocoder, also keyless, also free, with no published hard
+rate limit. Switch to it with one environment variable if Nominatim starts
+refusing requests. Both response shapes are normalised to the same structure
+and both are covered by tests.
 
-Setting it to `true` lands new trees in `DRAFT`, where the review queue at
-`/admin/review` picks them up. Contributors always see their own drafts under
-"My trees". Worth turning on only if there is somebody to work the queue;
-otherwise it is a way to quietly lose contributions.
+**Monthly budget: zero.** If usage ever outgrows the free tiers, the paths out
+are, in order of cost: self-host Nominatim (an Armenia extract is small), or
+set `GEOCODING_PROVIDER=maptiler` with a key and `GEOCODING_MIN_INTERVAL_MS=0`.
 
-### 4. Armenian UI at launch?
+### 3. Publish immediately
 
-**Currently:** English interface, with Armenian species names shown alongside
-English everywhere species appear — the picker, the filters, the list and the
-detail panel. Species search matches both.
+**`MODERATION_ENABLED=false`.** A submitted tree is `PUBLISHED` and on the map
+straight away.
 
-That covers the vocabulary a contributor in the field actually needs. Full
-interface localisation is not done, and the strings are not extracted for it. If
-Armenian UI is required at launch, that is a real piece of work and needs to be
-scheduled, not assumed.
+The review queue at `/admin/review` still exists, because it is now for
+*flagged* trees rather than for a gate every submission has to pass. A reviewer
+can flag something that looks wrong and work through the queue; nothing waits
+on them to appear.
 
-### 5. Existing survey data to import?
+### 4. English and Armenian, both at launch
 
-`pnpm import:csv <file>` validates the whole file and reports every problem
-before writing anything, because a half-imported survey is worse than a rejected
-one. Column mapping is at the top of `scripts/import-csv.ts` and will need
-adjusting to whatever the real files look like.
+The whole interface is translated, not just the species names. See
+`src/i18n/`: two catalogues, with the Armenian one typed against the English
+one so a missing key fails the build rather than showing an English word
+mid-sentence.
 
-### 6. One country, or global?
+- A language switcher sits in the navigation bar.
+- The choice is a cookie, not a URL segment, so a shared dashboard link does
+  not force the recipient into the sender's language.
+- With no cookie set, the browser's `Accept-Language` decides — someone in
+  Armenia gets Armenian on their first visit without touching anything.
+- `<html lang>` follows the locale, which is what tells a screen reader to
+  pronounce Armenian as Armenian.
+- Species names show in both languages everywhere, and the species search
+  matches either, regardless of interface language: the name someone reaches
+  for is the one they know the tree by.
+- Dates and numbers format per locale.
 
-**Currently:** one generic `region` column, populated from whatever the geocoder
-calls the first administrative level (`state` in Nominatim, which is what
-Armenia's marzer come back as).
+### 5. No existing survey data
 
-This is deliberately the flat, non-committal model. It will not represent a
-country whose administrative hierarchy is deeper than country → region → city,
-and it cannot express that a marz is not a state. Going global properly means a
-`regions` table with polygons and a spatial join, which is a schema change and a
-migration — worth doing once, when it is actually needed, rather than guessing
-now.
+Nothing to import. `pnpm import:csv` stays in the repository — it validates a
+whole file before writing anything — but it is not on the launch path and
+nobody needs to look at it.
+
+### 6. Armenia first
+
+The `region` column stays generic, and the geocoder's answer is canonicalised
+onto Armenia's eleven marzer in `src/lib/geocode/armenia.ts`.
+
+This matters more than it sounds. The same province arrives as "Shirak",
+"Shirak Province", "Shiraki Marz" or «Շիրակի մարզ» depending on the provider
+and the day; left alone, the region filter fills up with four spellings of one
+place and the counts are quietly wrong. The table maps all of them onto one
+canonical name and carries the Armenian name for the interface — which is why
+the region filter can say «Շիրակ» while the stored value, and therefore any
+shared URL, stays stable.
+
+A tree recorded outside Armenia keeps whatever region the geocoder gave it.
+Armenia first does not mean Armenia only.
+
+What this deliberately does **not** do is model administrative hierarchy
+properly. There is no `regions` table, no polygons, no spatial join. A country
+whose structure is deeper than country → region → city will not fit, and
+making it fit is a schema change worth doing once, when there is a second
+country to fit it to.
+

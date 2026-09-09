@@ -3,19 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import { useT } from '@/i18n/client';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import type { MessageKey } from '@/i18n';
 
 type Props = {
   user: { name: string; role: string } | null;
 };
 
-const LINKS = [
-  { href: '/dashboard', label: 'Map' },
-  { href: '/add', label: 'Add a tree' },
-  { href: '/my-trees', label: 'My trees' },
+const LINKS: Array<{ href: string; labelKey: MessageKey }> = [
+  { href: '/dashboard', labelKey: 'nav.map' },
+  { href: '/add', labelKey: 'nav.add' },
+  { href: '/my-trees', labelKey: 'nav.myTrees' },
 ];
 
 export function NavBar({ user }: Props) {
   const pathname = usePathname();
+  const t = useT();
   const isStaff = user?.role === 'REVIEWER' || user?.role === 'ADMIN';
 
   return (
@@ -23,7 +27,7 @@ export function NavBar({ user }: Props) {
       <nav className="mx-auto flex max-w-6xl items-center gap-1 px-3 py-2">
         <Link href="/" className="mr-2 flex items-center gap-2 font-bold text-emerald-900">
           <span aria-hidden>🌳</span>
-          <span className="hidden sm:inline">Cruncholino Trees</span>
+          <span className="hidden sm:inline">{t('app.name')}</span>
         </Link>
 
         {LINKS.map((link) => (
@@ -37,7 +41,7 @@ export function NavBar({ user }: Props) {
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            {link.label}
+            {t(link.labelKey)}
           </Link>
         ))}
 
@@ -50,23 +54,24 @@ export function NavBar({ user }: Props) {
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            Admin
+            {t('nav.admin')}
           </Link>
         ) : null}
 
         <div className="ml-auto flex items-center gap-2">
+          <LanguageSwitcher />
           {user ? (
             <>
               <span className="hidden text-sm text-stone-500 sm:inline" title={user.role}>
                 {user.name}
               </span>
               <button type="button" className="btn-ghost" onClick={() => signOut()}>
-                Sign out
+                {t('common.signOut')}
               </button>
             </>
           ) : (
             <Link href="/signin" className="btn-ghost">
-              Sign in
+              {t('common.signIn')}
             </Link>
           )}
         </div>

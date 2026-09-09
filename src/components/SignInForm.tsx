@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
+import { useT } from '@/i18n/client';
 
 export function SignInForm({
   emailProviderId,
@@ -14,6 +15,7 @@ export function SignInForm({
   callbackUrl: string;
   error: string | null;
 }) {
+  const t = useT();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -23,8 +25,7 @@ export function SignInForm({
   if (!hasEmail && !hasDevLogin) {
     return (
       <p className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-        No sign-in method is configured. Set <code className="font-mono">EMAIL_SERVER</code> for
-        magic-link sign-in, or <code className="font-mono">AUTH_DEV_LOGIN=true</code> in development.
+        {t('signin.noMethod')}
       </p>
     );
   }
@@ -41,12 +42,12 @@ export function SignInForm({
     >
       {error ? (
         <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-          Sign-in failed ({error}). Try again.
+          {t('signin.failed', { error })}
         </p>
       ) : null}
 
       <label className="block">
-        <span className="field-label">Email address</span>
+        <span className="field-label">{t('signin.email')}</span>
         <input
           type="email"
           className="field-input"
@@ -59,14 +60,11 @@ export function SignInForm({
       </label>
 
       <button type="submit" className="btn-primary w-full" disabled={busy || !email}>
-        {busy ? 'Sending…' : hasEmail ? 'Email me a sign-in link' : 'Sign in (development)'}
+        {busy ? t('signin.sending') : hasEmail ? t('signin.sendLink') : t('signin.devButton')}
       </button>
 
       {hasDevLogin ? (
-        <p className="text-xs text-stone-500">
-          Development sign-in is enabled: any address signs in immediately, no email sent. Try{' '}
-          <code className="font-mono">admin@example.org</code>.
-        </p>
+        <p className="text-xs text-stone-500">{t('signin.devHint')}</p>
       ) : null}
     </form>
   );

@@ -9,8 +9,10 @@
  */
 import { useEffect, useState } from 'react';
 import { count, subscribe, sync } from '@/lib/client/offline-queue';
+import { useT } from '@/i18n/client';
 
 export function OfflineQueueBanner() {
+  const t = useT();
   const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -54,11 +56,11 @@ export function OfflineQueueBanner() {
         online ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-100 text-amber-900'
       }`}
     >
-      {!online ? <span>You’re offline — new trees are saved on this device. </span> : null}
+      {!online ? <span>{t('offline.offline')} </span> : null}
       {pending > 0 ? (
         <span>
-          {pending} tree{pending === 1 ? '' : 's'} waiting to upload
-          {syncing ? ' — syncing…' : ''}
+          {t('offline.waiting', { count: pending })}
+          {syncing ? ` ${t('offline.syncing')}` : ''}
           {online && !syncing ? (
             <button
               type="button"
@@ -70,7 +72,7 @@ export function OfflineQueueBanner() {
                 setPending(await count());
               }}
             >
-              Sync now
+              {t('offline.syncNow')}
             </button>
           ) : null}
         </span>

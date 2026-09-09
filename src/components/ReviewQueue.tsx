@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/client/api';
+import { useLocale } from '@/i18n/client';
 
 type Item = {
   id: string;
@@ -20,6 +21,7 @@ type Item = {
 };
 
 export function ReviewQueue() {
+  const { t, locale } = useLocale();
   const [items, setItems] = useState<Item[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -41,18 +43,18 @@ export function ReviewQueue() {
       });
       setItems((current) => current?.filter((item) => item.id !== treeId) ?? null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save that decision');
+      setError(cause instanceof Error ? cause.message : t('review.failed'));
     } finally {
       setBusy(null);
     }
   };
 
   if (error) return <p className="mt-6 text-sm text-red-700">{error}</p>;
-  if (!items) return <p className="mt-6 text-stone-500">Loading…</p>;
+  if (!items) return <p className="mt-6 text-stone-500">{t('common.loading')}</p>;
   if (items.length === 0) {
     return (
       <p className="mt-8 rounded-xl border border-dashed border-stone-300 p-8 text-center text-stone-500">
-        Nothing waiting. 🎉
+        {t('review.empty')}
       </p>
     );
   }
@@ -74,14 +76,15 @@ export function ReviewQueue() {
                 {item.city ? ` · ${item.city}` : ''}
               </p>
               <p className="text-xs text-stone-500">
-                {item.createdBy ?? 'Unknown'} · {new Date(item.createdAt).toLocaleString()}
+                {item.createdBy ?? t('review.unknownContributor')} ·{' '}
+                {new Date(item.createdAt).toLocaleString(locale === 'hy' ? 'hy-AM' : 'en-GB')}
               </p>
               {item.notes ? <p className="mt-2 text-sm">{item.notes}</p> : null}
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Link href={`/dashboard?tree=${item.id}`} className="btn-ghost">
-                View
+                {t('review.view')}
               </Link>
               <button
                 type="button"
@@ -89,7 +92,7 @@ export function ReviewQueue() {
                 disabled={busy === item.id}
                 onClick={() => decide(item.id, 'flag')}
               >
-                Flag
+                {t('review.flag')}
               </button>
               <button
                 type="button"
@@ -97,7 +100,7 @@ export function ReviewQueue() {
                 disabled={busy === item.id}
                 onClick={() => decide(item.id, 'reject')}
               >
-                Reject
+                {t('review.reject')}
               </button>
               <button
                 type="button"
@@ -105,7 +108,7 @@ export function ReviewQueue() {
                 disabled={busy === item.id}
                 onClick={() => decide(item.id, 'approve')}
               >
-                Approve
+                {t('review.approve')}
               </button>
             </div>
           </div>

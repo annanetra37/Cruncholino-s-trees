@@ -4,7 +4,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/client/api';
-import { AGE_BANDS, CONDITIONS, FRUIT_QUALITIES, conditionColor, labelFor } from '@/lib/constants';
+import {
+  AGE_BANDS,
+  CONDITIONS,
+  FRUIT_QUALITIES,
+  conditionColor,
+  labelKeyFor,
+} from '@/lib/constants';
+import { useLocale } from '@/i18n/client';
+import { speciesName, speciesSecondaryName } from '@/lib/species-name';
+import { regionNameHy } from '@/lib/geocode/armenia';
 import type { TreeDetail } from '@/lib/client/types';
 
 type Response = {
@@ -21,8 +30,13 @@ export function TreeDetailPanel({
   photoBaseUrl: string;
   onClose: () => void;
 }) {
+  const { t, locale } = useLocale();
   const [data, setData] = useState<Response | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const label = (list: Parameters<typeof labelKeyFor>[0], value: string) => {
+    const key = labelKeyFor(list, value);
+    return key ? t(key) : value;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -46,18 +60,22 @@ export function TreeDetailPanel({
     <aside className="flex h-full w-full flex-col overflow-y-auto border-l border-stone-200 bg-white">
       <div className="flex items-start justify-between gap-2 border-b border-stone-200 p-4">
         <div>
-          <h2 className="text-lg font-bold">{data?.tree.species.nameEn ?? 'Tree'}</h2>
-          {data?.tree.species.nameHy ? (
-            <p className="text-sm text-stone-500">{data.tree.species.nameHy}</p>
+          <h2 className="text-lg font-bold">
+            {data ? speciesName(data.tree.species, locale) : t('detail.tree')}
+          </h2>
+          {data && speciesSecondaryName(data.tree.species, locale) ? (
+            <p className="text-sm text-stone-500">
+              {speciesSecondaryName(data.tree.species, locale)}
+            </p>
           ) : null}
         </div>
-        <button type="button" className="btn-ghost" onClick={onClose} aria-label="Close details">
+        <button type="button" className="btn-ghost" onClick={onClose} aria-label={t('detail.close')}>
           ✕
         </button>
       </div>
 
       {error ? <p className="p-4 text-sm text-red-700">{error}</p> : null}
-      {!data && !error ? <p className="p-4 text-sm text-stone-500">Loading…</p> : null}
+      {!data && !error ? <p className="p-4 text-sm text-stone-500">{t('common.loading')}</p> : null}
 
       {data ? (
         <div className="space-y-5 p-4">
@@ -68,7 +86,7 @@ export function TreeDetailPanel({
                 <img
                   key={photo.id}
                   src={`${photoBaseUrl.replace(/\/$/, '')}/${photo.storageKey}`}
-                  alt={`${data.tree.species.nameEn} photo`}
+                  alt={speciesName(data.tree.species, locale)}
                   loading="lazy"
                   className="aspect-square w-full rounded-lg object-cover"
                 />
@@ -77,51 +95,65 @@ export function TreeDetailPanel({
           ) : null}
 
           <dl className="space-y-2 text-sm">
-            <Row label="Condition">
+            <Row label={t('detail.condition')}>
               <span className="inline-flex items-center gap-1.5">
                 <span
                   aria-hidden
                   className="size-2.5 rounded-full ring-1 ring-black/20"
                   style={{ backgroundColor: conditionColor(data.tree.condition) }}
                 />
-                {labelFor(CONDITIONS, data.tree.condition)}
+                {label(CONDITIONS, data.tree.condition)}
               </span>
             </Row>
-            <Row label="Fruit">{labelFor(FRUIT_QUALITIES, data.tree.fruitQuality)}</Row>
-            <Row label="Age">
-              {labelFor(AGE_BANDS, data.tree.ageBand)}
-              {data.tree.ageYearsEstimate ? ` (~${data.tree.ageYearsEstimate} years)` : ''}
+            <Row label={t('detail.fruit')}>{label(FRUIT_QUALITIES, data.tree.fruitQuality)}</Row>
+            <Row label={t('detail.age')}>
+              {label(AGE_BANDS, data.tree.ageBand)}
+              {data.tree.ageYearsEstimate
+                ? ` (${t('detail.years', { years: data.tree.ageYearsEstimate })})`
+                : ''}
             </Row>
-            <Row label="Address">
-              {data.tree.address.line ?? '—'}
+            <Row label={t('detail.address')}>
+              {data.tree.address.line ?? t('common.none')}
               {data.tree.address.status === 'FAILED' ? (
-                <span className="ml-1 text-amber-700">(lookup failed)</span>
+                <span className="ml-1 text-amber-700">{t('detail.lookupFailed')}</span>
               ) : null}
               {data.tree.address.status === 'MANUAL' ? (
-                <span className="ml-1 text-stone-400">(entered by hand)</span>
+                <span className="ml-1 text-stone-400">{t('detail.manual')}</span>
               ) : null}
             </Row>
-            <Row label="City">{data.tree.address.city ?? '—'}</Row>
-            <Row label="Region">{data.tree.address.region ?? '—'}</Row>
-            <Row label="Coordinates">
+            <Row label={t('field.city')}>{data.tree.address.city ?? t('common.none')}</Row>
+            <Row label={t('field.region')}>
+              {(locale === 'hy' ? regionNameHy(data.tree.address.region) : null) ??
+                data.tree.address.region ??
+                t('common.none')}
+            </Row>
+            <Row label={t('detail.coordinates')}>
               <span className="font-mono text-xs">
                 {data.tree.latitude.toFixed(5)}, {data.tree.longitude.toFixed(5)}
               </span>
               {data.tree.coordinatesApproximate ? (
-                <span className="ml-1 text-stone-400">(approximate)</span>
+                <span className="ml-1 text-stone-400">{t('detail.approximate')}</span>
               ) : null}
               {data.tree.location.accuracyM ? (
                 <span className="ml-1 text-stone-400">±{Math.round(data.tree.location.accuracyM)} m</span>
               ) : null}
             </Row>
-            <Row label="Added by">{data.tree.createdBy?.name ?? 'Anonymous'}</Row>
-            <Row label="Recorded">{new Date(data.tree.createdAt).toLocaleDateString()}</Row>
-            {data.tree.status !== 'PUBLISHED' ? <Row label="Status">{data.tree.status}</Row> : null}
+            <Row label={t('detail.addedBy')}>
+              {data.tree.createdBy?.name ?? t('detail.anonymous')}
+            </Row>
+            <Row label={t('detail.recorded')}>
+              {new Date(data.tree.createdAt).toLocaleDateString(
+                locale === 'hy' ? 'hy-AM' : 'en-GB',
+              )}
+            </Row>
+            {data.tree.status !== 'PUBLISHED' ? (
+              <Row label={t('field.status')}>{data.tree.status}</Row>
+            ) : null}
           </dl>
 
           {data.tree.notes ? (
             <div>
-              <h3 className="field-label">Notes</h3>
+              <h3 className="field-label">{t('field.notes')}</h3>
               <p className="whitespace-pre-wrap rounded-lg bg-stone-50 p-3 text-sm">
                 {data.tree.notes}
               </p>
@@ -131,7 +163,7 @@ export function TreeDetailPanel({
           <div className="flex flex-wrap gap-2">
             {data.permissions.canEdit ? (
               <Link href={`/trees/${data.tree.id}/edit`} className="btn-secondary">
-                Edit
+                {t('common.edit')}
               </Link>
             ) : null}
             <a
@@ -140,20 +172,23 @@ export function TreeDetailPanel({
               target="_blank"
               rel="noreferrer noopener"
             >
-              Directions
+              {t('detail.directions')}
             </a>
           </div>
 
           {data.tree.revisions.length ? (
             <details className="text-sm">
               <summary className="cursor-pointer font-semibold">
-                History ({data.tree.revisions.length})
+                {t('detail.history', { count: data.tree.revisions.length })}
               </summary>
               <ol className="mt-2 space-y-2 border-l border-stone-200 pl-3">
                 {data.tree.revisions.map((revision) => (
                   <li key={revision.id}>
                     <p className="text-xs text-stone-500">
-                      {new Date(revision.changedAt).toLocaleString()} — {revision.action}
+                      {new Date(revision.changedAt).toLocaleString(
+                        locale === 'hy' ? 'hy-AM' : 'en-GB',
+                      )}{' '}
+                      — {revision.action}
                       {revision.by ? ` by ${revision.by}` : ''}
                     </p>
                     <ul className="text-xs text-stone-600">
@@ -161,8 +196,8 @@ export function TreeDetailPanel({
                         .slice(0, 8)
                         .map(([field, change]) => (
                           <li key={field}>
-                            <span className="font-medium">{field}</span>: {String(change.from ?? '—')}{' '}
-                            → {String(change.to ?? '—')}
+                            <span className="font-medium">{field}</span>:{' '}
+                            {String(change.from ?? '—')} → {String(change.to ?? '—')}
                           </li>
                         ))}
                     </ul>

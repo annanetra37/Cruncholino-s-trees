@@ -94,13 +94,12 @@ be set in production:
 | `AUTH_URL` | `https://<your domain>` |
 | `EMAIL_SERVER` | SMTP URL for magic links |
 | `EMAIL_FROM` | The From address |
-| `GEOCODING_PROVIDER` | `maptiler` (see §8 — **not** `nominatim`) |
-| `GEOCODING_API_KEY` | The provider key |
-| `GEOCODING_MIN_INTERVAL_MS` | `0` for a paid provider |
+| `GEOCODING_PROVIDER` | `nominatim` (free; `photon` is the keyless fallback — see §8) |
+| `GEOCODING_MIN_INTERVAL_MS` | `1100` for Nominatim; `0` only for a paid provider |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | Tile style URL |
 | `NEXT_PUBLIC_MAP_TILES_KEY` | Tile key — **public by design**, it ships in the browser bundle. Restrict it by HTTP referrer in the provider's console |
 | `R2_*` | Photo storage, if photos are enabled |
-| `PUBLIC_READ` | `true` or `false` — see §10 |
+| `PUBLIC_READ` | `false` — the dashboard is login-gated. See §10 before changing it |
 
 `AUTH_DEV_LOGIN` must never be set in production. The code refuses it when
 `NODE_ENV=production`, but do not rely on that alone.
@@ -227,10 +226,20 @@ Record the date of the last successful drill here:
 | `R2_*` | Create a new API token in Cloudflare with the same bucket scope, set it, deploy, revoke the old one |
 | `NEXT_PUBLIC_MAP_TILES_KEY` | This is in the browser bundle and cannot be secret. Restrict it by referrer and monitor usage instead |
 
-**Geocoding provider:** Nominatim is fine for development and its usage policy
-forbids heavy production use. Switch to a paid provider before launch, set a
-monthly budget, and set `GEOCODING_MIN_INTERVAL_MS=0`. The coordinate cache
-(rounded to ~11 m) means the bill scales with distinct locations, not with trees.
+**Geocoding provider:** the deployment runs on Nominatim, which is free and
+needs no key. Its usage policy caps requests at one per second and forbids bulk
+use; `GEOCODING_MIN_INTERVAL_MS=1100` and the coordinate cache (rounded to
+~11 m, so the cost scales with distinct places rather than trees) keep the app
+inside that. There is no key to rotate.
+
+If Nominatim starts returning 429 or 403, the first move is
+`GEOCODING_PROVIDER=photon` — Komoot's OSM geocoder, also free and keyless, no
+other change needed. Beyond that: self-host Nominatim from an Armenia extract,
+or set `GEOCODING_PROVIDER=maptiler` with a key and
+`GEOCODING_MIN_INTERVAL_MS=0`.
+
+Failed lookups are never lost work: the tree is stored with
+`geocode_status = FAILED` and the hourly `cron-geocode` service retries it.
 
 ---
 
@@ -247,9 +256,13 @@ monthly budget, and set `GEOCODING_MIN_INTERVAL_MS=0`. The coordinate cache
 
 ## 10. Decisions to revisit
 
-- **`PUBLIC_READ` (T7.3).** With it on, the coordinates of trees on private land
-  are public data. `FUZZ_PUBLIC_COORDINATES=true` rounds coordinates to ~100 m
-  for signed-out viewers as a middle ground. Decide this deliberately.
+- **`PUBLIC_READ` is `false`, deliberately.** Tree locations, including trees in
+  private gardens, are visible to signed-in members only. Turning it on
+  publishes every coordinate in the database to anyone with the URL — that is a
+  decision about other people's property, not a configuration preference. If
+  the map should be opened up, `FUZZ_PUBLIC_COORDINATES=true` is the middle
+  step: signed-out viewers get coordinates rounded to ~110 m, signed-in members
+  still get the real position.
 - **Rate limiting** is in-process (`src/lib/rate-limit.ts`). With `numReplicas: 1`
   the limit is the limit. Raise the replica count and the effective limit
   multiplies by the number of replicas — that is when the `redis` service earns

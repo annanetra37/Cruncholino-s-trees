@@ -1,17 +1,18 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { openFilters, signIn } from './helpers';
 
-/**
- * The filter panel is a sidebar on desktop and a bottom sheet behind a
- * "Filters" button on a phone. Tests drive it the way a user would rather than
- * assuming one of the two layouts.
- */
-async function openFilters(page: Page) {
-  const toggle = page.getByRole('button', { name: 'Filters' });
-  if (await toggle.isVisible()) await toggle.click();
-  await expect(page.getByRole('heading', { name: 'Filters' })).toBeVisible();
-}
+// Q1: the dashboard is login-gated. This lives outside the signed-in describe
+// below so it runs against a session-less page.
+test('dashboard sends an anonymous visitor to sign in', async ({ page }) => {
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL(/\/signin/);
+});
 
 test.describe('dashboard', () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+  });
+
   test('shows the map and a live result count', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.getByTestId('tree-map')).toBeVisible();

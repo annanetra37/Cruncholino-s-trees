@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import {
   normaliseMapTiler,
   normaliseNominatim,
+  normalisePhoton,
   type NormalisedAddress,
 } from '@/lib/geocode/normalise';
 
@@ -46,6 +47,19 @@ function buildUrl(latitude: number, longitude: number): string | null {
       url.searchParams.set('lon', String(longitude));
       url.searchParams.set('zoom', '18');
       url.searchParams.set('addressdetails', '1');
+      // One language for stored addresses, so the same street does not arrive
+      // transliterated differently on different days. The interface is
+      // bilingual through its own message catalogue, not through whatever the
+      // geocoder happened to return.
+      url.searchParams.set('accept-language', 'en');
+      return url.toString();
+    }
+    case 'photon': {
+      const base = env.GEOCODING_BASE_URL ?? 'https://photon.komoot.io/reverse';
+      const url = new URL(base);
+      url.searchParams.set('lat', String(latitude));
+      url.searchParams.set('lon', String(longitude));
+      url.searchParams.set('lang', 'en');
       return url.toString();
     }
     case 'maptiler': {
@@ -60,9 +74,14 @@ function buildUrl(latitude: number, longitude: number): string | null {
 }
 
 function normalise(payload: unknown): NormalisedAddress {
-  return env.GEOCODING_PROVIDER === 'maptiler'
-    ? normaliseMapTiler(payload)
-    : normaliseNominatim(payload);
+  switch (env.GEOCODING_PROVIDER) {
+    case 'maptiler':
+      return normaliseMapTiler(payload);
+    case 'photon':
+      return normalisePhoton(payload);
+    default:
+      return normaliseNominatim(payload);
+  }
 }
 
 async function fetchOnce(url: string): Promise<unknown> {

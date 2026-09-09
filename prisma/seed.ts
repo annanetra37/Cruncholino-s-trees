@@ -53,6 +53,12 @@ const SPECIES: SpeciesSeed[] = [
   { slug: 'pine', nameEn: 'Pine', nameHy: 'Սոճի', category: SpeciesCategory.ORNAMENTAL },
 ];
 
+/**
+ * Region names here are the canonical marz names (see
+ * src/lib/geocode/armenia.ts), which is what the geocoder's answers are
+ * normalised to — so seeded and geocoded trees land in the same filter bucket
+ * rather than two that look identical.
+ */
 const CITIES = [
   { city: 'Yerevan', region: 'Yerevan', lat: 40.1872, lng: 44.5152, spread: 0.045 },
   { city: 'Gyumri', region: 'Shirak', lat: 40.7894, lng: 43.8475, spread: 0.03 },

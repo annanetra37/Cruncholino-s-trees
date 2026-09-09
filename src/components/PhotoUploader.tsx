@@ -13,6 +13,7 @@ import { useCallback, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/client/api';
 import { readExifLocation } from '@/lib/client/exif';
 import { resizeImage } from '@/lib/client/image';
+import { useT } from '@/i18n/client';
 
 export type UploadedPhoto = {
   storageKey: string;
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export function PhotoUploader({ photos, onChange, onExifLocation, disabled }: Props) {
+  const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,14 +101,14 @@ export function PhotoUploader({ photos, onChange, onExifLocation, disabled }: Pr
   if (unavailable) {
     return (
       <p className="rounded-lg border border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">
-        Photo upload is not configured on this deployment. Everything else still works.
+        {t('photos.unavailable')}
       </p>
     );
   }
 
   return (
     <div>
-      <span className="field-label">Photos</span>
+      <span className="field-label">{t('field.photos')}</span>
 
       <div className="flex flex-wrap gap-2">
         {photos.map((photo) => (
@@ -119,7 +121,7 @@ export function PhotoUploader({ photos, onChange, onExifLocation, disabled }: Pr
             />
             <button
               type="button"
-              aria-label="Remove photo"
+              aria-label={t('photos.remove')}
               className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-stone-800 text-xs text-white"
               onClick={() => onChange(photos.filter((entry) => entry !== photo))}
             >
@@ -134,7 +136,7 @@ export function PhotoUploader({ photos, onChange, onExifLocation, disabled }: Pr
           onClick={() => input.current?.click()}
           disabled={disabled || busy}
         >
-          {busy ? '…' : '+ Photo'}
+          {busy ? '…' : t('photos.add')}
         </button>
       </div>
 
@@ -151,9 +153,7 @@ export function PhotoUploader({ photos, onChange, onExifLocation, disabled }: Pr
       />
 
       {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
-      <p className="mt-1 text-xs text-stone-500">
-        Photos are resized to 1600 px in your browser before upload.
-      </p>
+      <p className="mt-1 text-xs text-stone-500">{t('photos.hint')}</p>
     </div>
   );
 }

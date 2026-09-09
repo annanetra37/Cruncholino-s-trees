@@ -4,11 +4,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CATEGORIES } from '@/lib/constants';
+import { useT } from '@/i18n/client';
 import { apiFetch } from '@/lib/client/api';
 import type { SpeciesOption } from '@/lib/client/types';
 
 export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
   const router = useRouter();
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ slug: '', nameEn: '', nameHy: '', category: 'FRUIT' });
@@ -21,7 +23,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
       await work();
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Something went wrong');
+      setError(cause instanceof Error ? cause.message : t('speciesAdmin.failed'));
     } finally {
       setBusy(false);
     }
@@ -40,7 +42,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
         }}
       >
         <label className="block">
-          <span className="field-label">Slug</span>
+          <span className="field-label">{t('speciesAdmin.slug')}</span>
           <input
             className="field-input"
             required
@@ -51,7 +53,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
           />
         </label>
         <label className="block">
-          <span className="field-label">English</span>
+          <span className="field-label">{t('speciesAdmin.english')}</span>
           <input
             className="field-input"
             required
@@ -60,7 +62,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
           />
         </label>
         <label className="block">
-          <span className="field-label">Armenian</span>
+          <span className="field-label">{t('speciesAdmin.armenian')}</span>
           <input
             className="field-input"
             value={draft.nameHy}
@@ -68,7 +70,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
           />
         </label>
         <label className="block">
-          <span className="field-label">Category</span>
+          <span className="field-label">{t('speciesAdmin.category')}</span>
           <select
             className="field-input"
             value={draft.category}
@@ -76,13 +78,13 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
           >
             {CATEGORIES.map((category) => (
               <option key={category.value} value={category.value}>
-                {category.label}
+                {t(category.labelKey)}
               </option>
             ))}
           </select>
         </label>
         <button type="submit" className="btn-primary self-end" disabled={busy}>
-          Add
+          {t('speciesAdmin.add')}
         </button>
       </form>
 
@@ -93,10 +95,10 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
       <table className="w-full text-sm">
         <thead className="bg-stone-100 text-left">
           <tr>
-            <th className="px-3 py-2">Species</th>
-            <th className="px-3 py-2">Category</th>
-            <th className="px-3 py-2">Trees</th>
-            <th className="px-3 py-2">Active</th>
+            <th className="px-3 py-2">{t('speciesAdmin.species')}</th>
+            <th className="px-3 py-2">{t('speciesAdmin.category')}</th>
+            <th className="px-3 py-2">{t('speciesAdmin.trees')}</th>
+            <th className="px-3 py-2">{t('speciesAdmin.active')}</th>
             <th className="px-3 py-2" />
           </tr>
         </thead>
@@ -110,7 +112,9 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
               </td>
               <td className="px-3 py-2">{entry.category}</td>
               <td className="px-3 py-2">{entry.treeCount}</td>
-              <td className="px-3 py-2">{entry.isActive ? 'Yes' : 'No'}</td>
+              <td className="px-3 py-2">
+                {entry.isActive ? t('speciesAdmin.yes') : t('speciesAdmin.no')}
+              </td>
               <td className="px-3 py-2 text-right">
                 <button
                   type="button"
@@ -125,7 +129,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
                     )
                   }
                 >
-                  {entry.isActive ? 'Deactivate' : 'Reactivate'}
+                  {entry.isActive ? t('speciesAdmin.deactivate') : t('speciesAdmin.reactivate')}
                 </button>
                 <button
                   type="button"
@@ -133,7 +137,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
                   disabled={busy}
                   onClick={() => setMergeFrom(mergeFrom === entry.id ? null : entry.id)}
                 >
-                  Merge…
+                  {t('speciesAdmin.merge')}
                 </button>
 
                 {mergeFrom === entry.id ? (
@@ -145,7 +149,11 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
                       if (!target) return;
                       if (
                         !confirm(
-                          `Move all ${entry.treeCount} ${entry.nameEn} trees onto the other species and deactivate ${entry.slug}?`,
+                          t('speciesAdmin.confirmMerge', {
+                            count: entry.treeCount,
+                            species: entry.nameEn,
+                            slug: entry.slug,
+                          }),
                         )
                       )
                         return;
@@ -157,7 +165,7 @@ export function SpeciesAdmin({ initial }: { initial: SpeciesOption[] }) {
                       ).then(() => setMergeFrom(null));
                     }}
                   >
-                    <option value="">Merge into…</option>
+                    <option value="">{t('speciesAdmin.mergeInto')}</option>
                     {initial
                       .filter((option) => option.id !== entry.id)
                       .map((option) => (
