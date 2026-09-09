@@ -61,6 +61,12 @@ export const hy: Messages = {
   'signin.errorAccessDenied': 'Այս հաշվին մուտք գործել չի թույլատրվում։',
   'signin.noMethod':
     'Մուտքի եղանակ կարգավորված չէ։ Նշիր EMAIL_SERVER փոփոխականը կամ մշակման ռեժիմում՝ AUTH_DEV_LOGIN=true։',
+  'signin.or': 'կամ',
+  'signin.passwordTitle': 'Մուտք գաղտնաբառով',
+  'signin.password': 'Գաղտնաբառ',
+  'signin.passwordButton': 'Մուտք գործել',
+  'signin.errorCredentials':
+    'Այս էլ. հասցեի և գաղտնաբառի զույգը չճանաչվեց։ Ստուգիր երկուսն էլ. կրկնվող փորձերը սահմանափակվում են։',
   'signin.checkEmailTitle': 'Ստուգիր էլ. փոստդ',
   'signin.checkEmailBody':
     'Ուղարկեցինք մուտքի հղումը։ Այն գործում է 24 ժամ, և նույն սարքում բացելու դեպքում մուտքդ պահպանվում է։',

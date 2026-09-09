@@ -233,6 +233,52 @@ pulls it in ships a fixed range of its own.
 CI runs the same audit and fails on high or critical, so this should be caught
 in the pull request rather than at deploy time.
 
+## 4a. Getting in without a mail server
+
+The magic link needs working SMTP. Setting `OPERATOR_EMAIL` and
+`OPERATOR_PASSWORD` adds a password form to the sign-in page that does not:
+
+```
+OPERATOR_EMAIL=you@example.org
+OPERATOR_PASSWORD=<at least 12 characters, not guessable>
+OPERATOR_ROLE=ADMIN
+```
+
+Generate the password rather than inventing one:
+
+```sh
+openssl rand -base64 24
+```
+
+The account is created on first successful sign-in with whatever
+`OPERATOR_ROLE` says, so `ADMIN` here saves a separate `set-role` step. Both
+variables must be set or neither — half-configured reads as "I set this up"
+while the account silently does not exist, so the app refuses to start and says
+which one is missing. It also refuses a password under 12 characters or one on
+the list everybody tries first.
+
+Ten failed attempts per address per minute are rate limited, and every
+attempt — successful or not — is logged:
+
+```sh
+railway logs --service web --json | jq 'select(.message | startswith("operator sign-in"))'
+```
+
+### What it is not
+
+One shared login. It does not replace the magic link, and it should not be
+handed round:
+
+- Every tree recorded through it has the same contributor, so "added by" stops
+  meaning anything.
+- One password shared among several people cannot be revoked for one of them.
+- There is no per-person audit trail in `tree_revisions`.
+
+Set up SMTP when there is more than one person recording trees, give everyone
+their own account, and keep this as the way back in when mail breaks. Rotate it
+when someone who knew it stops needing it, and unset both variables to remove
+the account's ability to sign in entirely.
+
 ## 4b. "Sign-in failed (Configuration)"
 
 This is Auth.js's label for _any_ failure inside a sign-in provider, and it is

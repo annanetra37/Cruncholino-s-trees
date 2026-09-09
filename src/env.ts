@@ -11,6 +11,7 @@
  * into a confusing build error.
  */
 import { z } from 'zod';
+import { validateOperatorConfig } from '@/lib/operator-credentials';
 
 const booleanish = z
   .union([z.boolean(), z.enum(['true', 'false', '1', '0'])])
@@ -40,6 +41,20 @@ const envSchema = z.object({
   EMAIL_FROM: z.email().default('trees@example.org'),
   /** Dev-only shortcut: sign in by typing an email, no SMTP round trip. */
   AUTH_DEV_LOGIN: booleanish.default(false),
+
+  /**
+   * A single password account, for getting into a deployment that has no
+   * working mail server yet. Both must be set or neither; the password is
+   * checked for length and for the passwords everyone tries first, because a
+   * bootstrap account on a public URL is exactly where a weak one gets used.
+   *
+   * This is one shared login, not general password auth. Contributors should
+   * get their own accounts through the magic link — a shared account makes
+   * every tree look like it was recorded by the same person.
+   */
+  OPERATOR_EMAIL: z.email().optional(),
+  OPERATOR_PASSWORD: z.string().optional(),
+  OPERATOR_ROLE: z.enum(['CONTRIBUTOR', 'REVIEWER', 'ADMIN']).default('ADMIN'),
 
   // --- Geocoding ----------------------------------------------------------
   /**
@@ -104,6 +119,20 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 
+/**
+ * Cross-field checks that a per-field schema cannot express. Reported the same
+ * way as any other bad variable: at boot, naming the variable.
+ */
+const envSchemaWithChecks = envSchema.superRefine((value, ctx) => {
+  for (const problem of validateOperatorConfig(value.OPERATOR_EMAIL, value.OPERATOR_PASSWORD)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [problem.code === 'missing_email' ? 'OPERATOR_EMAIL' : 'OPERATOR_PASSWORD'],
+      message: problem.message,
+    });
+  }
+});
+
 export type Env = z.infer<typeof envSchema>;
 
 /**
@@ -120,7 +149,7 @@ const buildPhaseFallbacks = {
 
 function loadEnv(): Env {
   const source = isBuildPhase ? { ...buildPhaseFallbacks, ...process.env } : process.env;
-  const parsed = envSchema.safeParse(source);
+  const parsed = envSchemaWithChecks.safeParse(source);
 
   if (!parsed.success) {
     const lines = parsed.error.issues.map((issue) => {

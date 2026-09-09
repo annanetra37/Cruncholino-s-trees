@@ -17,6 +17,8 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { env } from '@/env';
 import { logger } from '@/lib/logger';
+import { consume } from '@/lib/rate-limit';
+import { operatorConfig, verifyOperator } from '@/lib/operator-credentials';
 
 const ROLE_REFRESH_MS = 5 * 60 * 1000;
 
@@ -42,9 +44,11 @@ const providers: NextAuthConfig['providers'] = [];
  */
 const EMAIL_PROVIDER_ID = 'nodemailer';
 const DEV_PROVIDER_ID = 'dev-login';
+const OPERATOR_PROVIDER_ID = 'operator';
 
 let emailProviderId: string | null = null;
 let devProviderId: string | null = null;
+let operatorProviderId: string | null = null;
 
 if (env.EMAIL_SERVER) {
   providers.push(
@@ -85,6 +89,67 @@ if (env.AUTH_DEV_LOGIN && env.NODE_ENV !== 'production') {
 
   providers.push(provider);
   devProviderId = DEV_PROVIDER_ID;
+}
+
+/**
+ * Password sign-in for the single configured account (see
+ * `src/lib/operator-credentials.ts`). Unlike the dev login this is allowed in
+ * production, because its whole purpose is getting into a real deployment that
+ * has no working mail server yet.
+ */
+const operator = operatorConfig(env.OPERATOR_EMAIL, env.OPERATOR_PASSWORD);
+
+if (operator) {
+  const provider = Credentials({
+    id: OPERATOR_PROVIDER_ID,
+    name: 'Email and password',
+    credentials: {
+      email: { label: 'Email', type: 'email' },
+      password: { label: 'Password', type: 'password' },
+    },
+    async authorize(credentials) {
+      const parsed = z
+        .object({ email: z.string().min(1), password: z.string().min(1) })
+        .safeParse(credentials);
+      if (!parsed.success) return null;
+
+      // A password form on a public URL gets guessed at. The limiter is keyed
+      // on the submitted address rather than the configured one, so probing
+      // with different addresses cannot be used to bypass it.
+      const attempt = consume(`signin:operator:${parsed.data.email.toLowerCase()}`, 10, 60_000);
+      if (!attempt.allowed) {
+        logger.warn('operator sign-in rate limited', { email: parsed.data.email });
+        return null;
+      }
+
+      if (!verifyOperator(operator, parsed.data)) {
+        // Logged because repeated failures on a shared account are worth
+        // noticing, and there is nobody else to notice them.
+        logger.warn('operator sign-in rejected', { email: parsed.data.email });
+        return null;
+      }
+
+      const user = await prisma.user.upsert({
+        where: { email: operator.email },
+        update: { role: env.OPERATOR_ROLE },
+        create: {
+          email: operator.email,
+          name: operator.email.split('@')[0],
+          role: env.OPERATOR_ROLE,
+          // The password *is* the proof of address ownership here; there is no
+          // link to click, so marking it verified is accurate rather than
+          // generous.
+          emailVerified: new Date(),
+        },
+      });
+
+      logger.info('operator sign-in', { email: operator.email, role: user.role });
+      return { id: user.id, email: user.email, name: user.name, role: user.role };
+    },
+  });
+
+  providers.push(provider);
+  operatorProviderId = OPERATOR_PROVIDER_ID;
 }
 
 export const authConfig: NextAuthConfig = {
@@ -157,4 +222,4 @@ export const authConfig: NextAuthConfig = {
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
 
 /** What the sign-in page can actually offer, and under which provider id. */
-export const authMethods = { emailProviderId, devProviderId } as const;
+export const authMethods = { emailProviderId, devProviderId, operatorProviderId } as const;

@@ -26,6 +26,7 @@ export default async function SignInPage({
         <SignInForm
           emailProviderId={authMethods.emailProviderId}
           devProviderId={authMethods.devProviderId}
+          operatorProviderId={authMethods.operatorProviderId}
           callbackUrl={next ?? '/dashboard'}
           error={error ?? null}
         />
