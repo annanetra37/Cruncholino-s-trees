@@ -151,25 +151,36 @@ provider's console and watch the usage; that is the control, not secrecy.
 The full list of variables the app understands, with defaults, is in
 `.env.example`.
 
-## 3a. First run: seed the species list
+## 3a. First run
 
-Migrations create the tables. They do not create data, and the capture form is
-unusable without a species list — an empty dropdown and nothing to submit. Run
-this once against a new deployment:
+Nothing to do. The container runs `prisma migrate deploy` on start
+(`docker-entrypoint.sh`), and the species list ships as a migration, so a fresh
+deployment against an empty database creates its own tables and reference data.
+
+Migrations also stay declared as the platform's pre-deploy hook, which is the
+tidier place for them. Running them in the entrypoint as well is deliberate: a
+hook that silently does not run leaves the app pointed at a database with no
+tables, and that surfaces as "The table `public.users` does not exist" on the
+first sign-in — an application bug, apparently, rather than a deployment that
+never migrated.
+
+If migrations fail the container refuses to start, rather than serving an app
+whose every query fails while the healthcheck's HTTP layer looks alive.
+
+Demo trees and demo accounts are still a separate, opt-in step, and belong
+nowhere near production:
 
 ```sh
-railway run --service web env SEED_TREES=0 pnpm db:seed
+pnpm db:seed          # local development only: 30 demo trees and two accounts
 ```
 
-`SEED_TREES=0` is the production mode: the 30 species with their Armenian
-names, and nothing else. No demo trees, and deliberately no demo accounts — an
-ADMIN account nobody has ever authenticated as does not belong in a real
-database.
+### Make yourself an admin
 
-### Then make yourself an admin
-
-The first person to sign in is a CONTRIBUTOR like everyone else; there is no
-bootstrap admin, for the same reason. Sign in through the app first, then:
+With `OPERATOR_ROLE=ADMIN` the password account is an admin already and there
+is nothing to do. Otherwise the first person to sign in is a CONTRIBUTOR like
+everyone else — there is no bootstrap admin, because an account that exists
+before anyone has authenticated is an account nobody has authenticated as. Sign
+in through the app first, then:
 
 ```sh
 railway run --service web pnpm set-role you@example.org ADMIN

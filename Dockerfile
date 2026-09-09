@@ -71,9 +71,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
 
-# Standalone output: no Next CLI, no pnpm, just Node running the traced server.
-CMD ["node", "server.js"]
+# Migrations first, then the traced standalone server. See the script for why
+# migrations run here and not only in the platform's pre-deploy hook.
+CMD ["./docker-entrypoint.sh"]
