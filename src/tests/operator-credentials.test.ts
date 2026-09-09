@@ -8,7 +8,7 @@ import {
   verifyOperator,
 } from '@/lib/operator-credentials';
 
-const GOOD = 'correct-horse-battery-staple';
+const GOOD = 'trees2026';
 
 describe('secretsMatch', () => {
   it('matches identical strings and rejects everything else', () => {
@@ -45,21 +45,21 @@ describe('validateOperatorConfig', () => {
     expect(validateOperatorConfig(undefined, undefined)).toEqual([]);
   });
 
-  it('rejects a short password', () => {
+  it('accepts a simple, memorable password', () => {
+    // Strength is the operator's judgement, not this module's. The rate limit
+    // on the provider is what makes a short password survivable.
+    for (const simple of ['anna', 'trees', 'khndzor', 'tree1234']) {
+      expect(validateOperatorConfig('me@example.org', simple)).toEqual([]);
+    }
+  });
+
+  it('rejects a value so short it means "no password at all"', () => {
     const short = 'a'.repeat(MIN_OPERATOR_PASSWORD_LENGTH - 1);
     expect(validateOperatorConfig('me@example.org', short)[0]?.code).toBe('too_short');
   });
 
-  it('rejects the passwords everyone tries first', () => {
-    for (const guess of ['changeme', 'Password123', 'admin', 'your-password-here']) {
-      const problems = validateOperatorConfig('me@example.org', guess.padEnd(12, '!'));
-      // Padding keeps them long enough to isolate the guessability check.
-      const codes = problems.map((p) => p.code);
-      if (guess.length >= MIN_OPERATOR_PASSWORD_LENGTH) expect(codes).toContain('guessable');
-    }
-    expect(validateOperatorConfig('me@example.org', 'your-password-here')[0]?.code).toBe(
-      'guessable',
-    );
+  it('rejects whitespace masquerading as a password', () => {
+    expect(validateOperatorConfig('me@example.org', '        ')[0]?.code).toBe('too_short');
   });
 });
 
@@ -70,7 +70,7 @@ describe('operatorConfig', () => {
 
   it('returns null when unset or invalid, so the provider does not register', () => {
     expect(operatorConfig(undefined, undefined)).toBeNull();
-    expect(operatorConfig('me@example.org', 'short')).toBeNull();
+    expect(operatorConfig('me@example.org', 'ab')).toBeNull();
     expect(operatorConfig('me@example.org', undefined)).toBeNull();
   });
 });

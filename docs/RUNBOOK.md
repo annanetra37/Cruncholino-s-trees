@@ -240,22 +240,20 @@ The magic link needs working SMTP. Setting `OPERATOR_EMAIL` and
 
 ```
 OPERATOR_EMAIL=you@example.org
-OPERATOR_PASSWORD=<at least 12 characters, not guessable>
+OPERATOR_PASSWORD=trees2026
 OPERATOR_ROLE=ADMIN
 ```
 
-Generate the password rather than inventing one:
-
-```sh
-openssl rand -base64 24
-```
+The password can be as simple as you want; the only rule is that it is not
+empty. What makes a short password survivable here is the rate limit, not its
+length — see below — so keep that in place rather than reaching for a longer
+password.
 
 The account is created on first successful sign-in with whatever
 `OPERATOR_ROLE` says, so `ADMIN` here saves a separate `set-role` step. Both
 variables must be set or neither — half-configured reads as "I set this up"
 while the account silently does not exist, so the app refuses to start and says
-which one is missing. It also refuses a password under 12 characters or one on
-the list everybody tries first.
+which one is missing.
 
 Ten failed attempts per address per minute are rate limited, and every
 attempt — successful or not — is logged:
