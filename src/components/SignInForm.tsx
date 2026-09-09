@@ -18,9 +18,15 @@ export function SignInForm({
   error: string | null;
 }) {
   const t = useT();
-  // Each form owns its fields. They used to share one `email`, which meant the
-  // password button stayed disabled until the *other* form's email box was
-  // filled in — with nothing on screen saying so.
+  // Each form owns its fields.
+  //
+  // Neither submit button is disabled on emptiness, only while a request is in
+  // flight. Disabling on "the state looks empty" loses to the browser: Chrome
+  // autofills these fields before React hydrates and fires no event React can
+  // see, so the inputs are visibly full while the state is empty and the
+  // button is dead. `required` on the inputs already blocks an empty submit,
+  // and the server validates regardless — the disabled attribute was adding
+  // nothing except a way to get stuck.
   const [linkEmail, setLinkEmail] = useState('');
   const [passwordEmail, setPasswordEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -91,11 +97,7 @@ export function SignInForm({
             />
           </label>
 
-          <button
-            type="submit"
-            className="btn-primary w-full"
-            disabled={busy !== null || !linkEmail}
-          >
+          <button type="submit" className="btn-primary w-full" disabled={busy !== null}>
             {busy === 'link'
               ? t('signin.sending')
               : hasEmail
@@ -155,7 +157,7 @@ export function SignInForm({
           <button
             type="submit"
             className={`${hasEmail || hasDevLogin ? 'btn-secondary' : 'btn-primary'} w-full`}
-            disabled={busy !== null || !passwordEmail || !password}
+            disabled={busy !== null}
           >
             {busy === 'password' ? t('signin.sending') : t('signin.passwordButton')}
           </button>

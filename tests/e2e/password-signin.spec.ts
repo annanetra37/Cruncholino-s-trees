@@ -21,8 +21,6 @@ test.describe('password sign-in', () => {
     // form's email field was filled, with nothing on screen explaining why.
     await passwordForm.getByLabel('Email address').fill(EMAIL);
     await passwordForm.getByLabel('Password').fill(PASSWORD);
-    await expect(passwordForm.getByRole('button', { name: 'Sign in' })).toBeEnabled();
-
     await passwordForm.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForURL((url) => !url.pathname.startsWith('/signin'), { timeout: 30_000 });
 
@@ -54,18 +52,40 @@ test.describe('password sign-in', () => {
     await expect(page.getByRole('alert')).toContainText(/not recognised/i, { timeout: 30_000 });
   });
 
-  test('each form works without the other being filled in', async ({ page }) => {
+  test('the buttons are never disabled by what the fields look like', async ({ page }) => {
+    // The bug this replaces: Chrome autofills before React hydrates, so the
+    // fields are visibly full while React's state is empty. A button disabled
+    // on that state is dead with no way to revive it except retyping.
     await page.goto('/signin');
 
-    // The magic-link button depends only on the magic-link email box.
     const linkButton = page.getByRole('button', { name: /Email me a sign-in link|development/i });
-    const linkForm = page.locator('form').filter({ has: linkButton });
-    await expect(linkButton).toBeDisabled();
-    await linkForm.getByLabel('Email address').fill('someone@example.org');
-    await expect(linkButton).toBeEnabled();
-
-    // …and filling it in does not enable the password button.
     const passwordForm = page.locator('form').filter({ has: page.getByLabel('Password') });
-    await expect(passwordForm.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+
+    await expect(linkButton).toBeEnabled();
+    await expect(passwordForm.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+  });
+
+  test('an empty password form does not submit', async ({ page }) => {
+    // `required` is what enforces this now, not a disabled button.
+    await page.goto('/signin');
+    const passwordForm = page.locator('form').filter({ has: page.getByLabel('Password') });
+    await passwordForm.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL(/\/signin/);
+  });
+
+  test('signs in when the browser autofilled the fields', async ({ page }) => {
+    await page.goto('/signin');
+    const passwordForm = page.locator('form').filter({ has: page.getByLabel('Password') });
+
+    // Set the values the way an autofill does — straight onto the DOM node,
+    // without the events React listens for.
+    await passwordForm.getByLabel('Email address').evaluate((el, value) => {
+      (el as HTMLInputElement).value = value;
+    }, EMAIL);
+    await passwordForm.getByLabel('Password').evaluate((el, value) => {
+      (el as HTMLInputElement).value = value;
+    }, PASSWORD);
+
+    await expect(passwordForm.getByRole('button', { name: 'Sign in' })).toBeEnabled();
   });
 });
