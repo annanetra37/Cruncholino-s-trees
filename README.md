@@ -7,6 +7,9 @@ Map the fruit and nut trees around you. Two flows:
 - **Dashboard** — every recorded tree on a map, filterable by species, age,
   condition, fruit quality and location.
 
+The interface is in **English and Armenian**, and the dashboard is
+**login-gated** — tree locations are visible to signed-in members only.
+
 Next.js (App Router) · PostgreSQL 16 + PostGIS · Prisma · MapLibre GL ·
 Auth.js · Cloudflare R2 · deployed on Railway.
 
@@ -51,9 +54,11 @@ src/
     dashboard/           the map
     add/                 the capture flow
     admin/               review queue, species management
+  i18n/                  English and Armenian catalogues, locale resolution
   lib/
     trees/               filters → SQL, queries, duplicate detection, revisions
     geocode/             reverse geocoding, provider adapters, coordinate cache
+      armenia.ts         the eleven marzer, and the aliases geocoders use
     policy.ts            authorisation rules, as pure functions
     authz.ts             the same rules, bound to a session
     storage/r2.ts        presigned uploads
@@ -102,7 +107,7 @@ geocoding provider times out, the tree is still created with
 coordinate rounded to four decimal places (~11 m), so a street full of trees
 costs one provider call rather than forty.
 
-### Authorisation
+### Authorisation, and the login gate
 
 `src/lib/policy.ts` holds the rules as pure functions; `src/lib/authz.ts` binds
 them to a session. Middleware sets security headers only — it runs on the edge
@@ -112,6 +117,32 @@ be worse than none.
 - `CONTRIBUTOR` — creates trees, edits and deletes its own
 - `REVIEWER` — edits any tree, changes status, exports
 - `ADMIN` — everything, plus species management
+
+`PUBLIC_READ=false` gates the dashboard: anonymous visitors are redirected to
+sign in, and every read endpoint returns 401. The home page stays public but
+shows only aggregate counts — no individual tree, and no coordinate, is
+reachable without an account.
+
+### Two languages, one interface
+
+`src/i18n/` holds an English catalogue and an Armenian one, with the Armenian
+typed against the English so a missing key fails the build rather than showing
+an English word mid-sentence. The locale is a cookie rather than a URL segment,
+so a shared dashboard link does not force the recipient into the sender's
+language; with no cookie, `Accept-Language` decides.
+
+Species names appear in both languages wherever species appear, and the search
+matches either — the name someone reaches for is the one they know the tree by,
+not the one the app happens to be set to.
+
+### Armenia's marzer, canonicalised
+
+Geocoders return the same province as "Shirak", "Shirak Province", "Shiraki
+Marz" or «Շիրակի մարզ» depending on the provider and the day. Left alone, the
+region filter fills with four spellings of one place and the counts are quietly
+wrong. `src/lib/geocode/armenia.ts` maps them onto one canonical name and
+carries the Armenian name for the interface. A tree recorded outside Armenia
+keeps whatever the geocoder said.
 
 ### Field conditions shaped the capture flow
 
@@ -148,9 +179,10 @@ Two things that catch people out:
 
 ---
 
-## Decisions still open
+## Decisions
 
-Tracked in [docs/DECISIONS.md](docs/DECISIONS.md): public versus login-gated
-dashboard, geocoding provider and budget, moderation, Armenian-language UI,
-existing survey data to import, and how far the region model needs to generalise
-beyond Armenia's marz structure.
+[docs/DECISIONS.md](docs/DECISIONS.md) records what was decided and why —
+including all six of the spec's open questions, which are now answered:
+login-gated dashboard, Nominatim (free, with Photon as the keyless fallback),
+immediate publishing, English and Armenian at launch, no data to import, and
+Armenia first with a generic region column underneath.

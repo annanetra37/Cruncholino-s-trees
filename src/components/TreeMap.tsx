@@ -14,6 +14,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
 import { markerIconExpression, registerMarkerImages } from '@/lib/client/markers';
 import type { TreeFeatureCollection } from '@/lib/client/types';
+import { useT } from '@/i18n/client';
 
 const SOURCE_ID = 'trees';
 const MARKER_LAYER = 'tree-markers';
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }: Props) {
+  const t = useT();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
@@ -240,8 +242,7 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
       <div ref={container} className="h-full w-full" data-testid="tree-map" />
       {styleError ? (
         <div className="absolute inset-x-4 top-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          The base map failed to load ({styleError}). Check{' '}
-          <code className="font-mono">NEXT_PUBLIC_MAP_STYLE_URL</code> and the tile key.
+          {t('map.styleFailed', { error: styleError })}
         </div>
       ) : null}
     </div>

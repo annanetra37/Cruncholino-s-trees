@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { canEditTree, getSessionUser } from '@/lib/authz';
 import { EditTreeForm } from '@/components/EditTreeForm';
+import { getT } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,12 +18,11 @@ export default async function EditTreePage({ params }: { params: Promise<{ id: s
   if (!tree) notFound();
 
   if (!canEditTree(user, tree)) {
+    const { t } = await getT();
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Not your tree</h1>
-        <p className="mt-2 text-stone-600">
-          You can only edit trees you added. Ask a reviewer if this one needs correcting.
-        </p>
+        <h1 className="text-2xl font-bold">{t('edit.notYours')}</h1>
+        <p className="mt-2 text-stone-600">{t('edit.notYoursBody')}</p>
       </div>
     );
   }

@@ -17,6 +17,7 @@ import { SpeciesPicker } from '@/components/SpeciesPicker';
 import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { PhotoUploader, type UploadedPhoto } from '@/components/PhotoUploader';
 import { AGE_BANDS, CONDITIONS, FRUIT_QUALITIES } from '@/lib/constants';
+import { useT } from '@/i18n/client';
 import { ApiClientError, apiFetch } from '@/lib/client/api';
 import { enqueue, sync } from '@/lib/client/offline-queue';
 import type { SpeciesOption } from '@/lib/client/types';
@@ -33,6 +34,7 @@ const DRAFT_KEY = 'cruncholino:add-tree-draft';
 
 export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
   const router = useRouter();
+  const t = useT();
 
   const [location, setLocation] = useState<PickedLocation | null>(null);
   const [speciesId, setSpeciesId] = useState<string | null>(null);
@@ -114,11 +116,11 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
     setFieldErrors({});
 
     if (!speciesId) {
-      setFieldErrors({ speciesId: ['Pick a species'] });
+      setFieldErrors({ speciesId: [t('add.needSpecies')] });
       return;
     }
     if (!location) {
-      setError('Set the tree’s position first.');
+      setError(t('add.needPosition'));
       return;
     }
 
@@ -152,7 +154,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
           return;
         }
         if (failure.status === 401) {
-          setError('Your session expired. Sign in again — your entry is saved on this device.');
+          setError(t('add.sessionExpired'));
           await enqueue(payload);
           setQueued(true);
           setSubmitting(false);
@@ -169,7 +171,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
         await new Promise((resolve) => setTimeout(resolve, 800));
       }
     }
-  }, [buildPayload, location, speciesId]);
+  }, [buildPayload, location, speciesId, t]);
 
   const saveAddressCorrection = useCallback(async () => {
     if (!result || !addressEdit) return;
@@ -185,9 +187,9 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
         tree: { ...result.tree, address: { ...result.tree.address, status: 'MANUAL' } },
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the correction');
+      setError(cause instanceof Error ? cause.message : t('add.correctionFailed'));
     }
-  }, [addressEdit, result]);
+  }, [addressEdit, result, t]);
 
   if (queued) {
     return (
@@ -195,21 +197,18 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
         <p className="text-4xl" aria-hidden>
           📥
         </p>
-        <h2 className="text-xl font-bold">Saved on this device</h2>
-        <p className="text-stone-600">
-          There was no usable connection, so the tree is queued and will upload by itself when
-          you’re back online. You can keep adding trees.
-        </p>
+        <h2 className="text-xl font-bold">{t('add.queuedTitle')}</h2>
+        <p className="text-stone-600">{t('add.queuedBody')}</p>
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" className="btn-primary" onClick={reset}>
-            Add another tree
+            {t('add.addAnother')}
           </button>
           <button
             type="button"
             className="btn-secondary"
             onClick={() => sync().then(() => router.refresh())}
           >
-            Try syncing now
+            {t('add.trySync')}
           </button>
         </div>
       </div>
@@ -224,26 +223,21 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
           <p className="text-4xl" aria-hidden>
             🌳
           </p>
-          <h2 className="text-xl font-bold">Tree recorded</h2>
+          <h2 className="text-xl font-bold">{t('add.recorded')}</h2>
         </div>
 
         {/* T4.3 — confirm the reverse-geocoded address, and let it be corrected. */}
         <div className="rounded-lg border border-stone-200 p-3">
-          <p className="text-sm text-stone-500">Address we found</p>
-          <p className="font-medium">
-            {result.tree.address.line ?? 'No address found for this position'}
-          </p>
+          <p className="text-sm text-stone-500">{t('add.addressFound')}</p>
+          <p className="font-medium">{result.tree.address.line ?? t('add.noAddress')}</p>
           {result.tree.address.status === 'FAILED' ? (
-            <p className="mt-1 text-sm text-amber-700">
-              The address lookup failed. The coordinates are saved correctly — you can fill the city
-              in here.
-            </p>
+            <p className="mt-1 text-sm text-amber-700">{t('add.lookupFailed')}</p>
           ) : null}
 
           {addressEdit ? (
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <label className="block">
-                <span className="field-label">City</span>
+                <span className="field-label">{t('field.city')}</span>
                 <input
                   className="field-input"
                   value={addressEdit.city}
@@ -251,7 +245,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
                 />
               </label>
               <label className="block">
-                <span className="field-label">Region</span>
+                <span className="field-label">{t('field.region')}</span>
                 <input
                   className="field-input"
                   value={addressEdit.region}
@@ -265,7 +259,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
                 className="btn-secondary sm:col-span-2"
                 onClick={saveAddressCorrection}
               >
-                Save correction
+                {t('add.saveCorrection')}
               </button>
             </div>
           ) : null}
@@ -273,8 +267,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
 
         {duplicate ? (
           <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            {duplicate.message} If one of them is the same tree, an admin can merge them later —
-            your record is saved either way.
+            {duplicate.message} {t('add.duplicateHint')}
           </p>
         ) : null}
 
@@ -282,14 +275,14 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
 
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" className="btn-primary" onClick={reset}>
-            Add another tree
+            {t('add.addAnother')}
           </button>
           <button
             type="button"
             className="btn-secondary"
             onClick={() => router.push(`/dashboard?tree=${result.tree.id}`)}
           >
-            See it on the map
+            {t('add.seeOnMap')}
           </button>
         </div>
       </div>
@@ -305,12 +298,12 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
       }}
     >
       <section className="card p-4">
-        <h2 className="mb-3 text-lg font-bold">1. Where is it?</h2>
+        <h2 className="mb-3 text-lg font-bold">{t('add.step1')}</h2>
         <LocationStep value={location} onChange={setLocation} />
       </section>
 
       <section className="card p-4">
-        <h2 className="mb-3 text-lg font-bold">2. What is it?</h2>
+        <h2 className="mb-3 text-lg font-bold">{t('add.step2')}</h2>
         <SpeciesPicker
           species={species}
           value={speciesId}
@@ -320,9 +313,9 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
       </section>
 
       <section className="card space-y-5 p-4">
-        <h2 className="text-lg font-bold">3. How is it doing?</h2>
+        <h2 className="text-lg font-bold">{t('add.step3')}</h2>
         <ChoiceGroup
-          legend="Condition of the tree"
+          legendKey="field.condition"
           options={CONDITIONS}
           value={condition}
           onChange={setCondition}
@@ -330,16 +323,21 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
         {/* Deliberately separate from condition: a healthy tree can bear bad
             fruit, and a half-dead one can bear well. */}
         <ChoiceGroup
-          legend="Fruit quality"
+          legendKey="field.fruitQuality"
           options={FRUIT_QUALITIES}
           value={fruitQuality}
           onChange={setFruitQuality}
         />
-        <ChoiceGroup legend="Age" options={AGE_BANDS} value={ageBand} onChange={setAgeBand} />
+        <ChoiceGroup
+          legendKey="field.age"
+          options={AGE_BANDS}
+          value={ageBand}
+          onChange={setAgeBand}
+        />
       </section>
 
       <section className="card space-y-4 p-4">
-        <h2 className="text-lg font-bold">4. Anything else? (optional)</h2>
+        <h2 className="text-lg font-bold">{t('add.step4')}</h2>
         <PhotoUploader
           photos={photos}
           onChange={setPhotos}
@@ -351,12 +349,12 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
           }}
         />
         <label className="block">
-          <span className="field-label">Notes</span>
+          <span className="field-label">{t('field.notes')}</span>
           <textarea
             className="field-input min-h-24"
             value={notes}
             maxLength={2000}
-            placeholder="Anything worth knowing — access, ownership, damage…"
+            placeholder={t('add.notesPlaceholder')}
             onChange={(event) => setNotes(event.target.value)}
           />
         </label>
@@ -375,7 +373,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
             className="btn-primary flex-1 text-lg"
             disabled={submitting || !speciesId || !location}
           >
-            {submitting ? 'Saving…' : 'Save tree'}
+            {submitting ? t('common.saving') : t('add.save')}
           </button>
         </div>
       </div>

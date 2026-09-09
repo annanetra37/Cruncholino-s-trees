@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl, { type Map as MapLibreMap, type Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
+import { useT } from '@/i18n/client';
 
 export type PickedLocation = {
   latitude: number;
@@ -28,11 +29,16 @@ type Props = {
 };
 
 export function LocationStep({ value, onChange }: Props) {
+  const t = useT();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const marker = useRef<Marker | null>(null);
   const [status, setStatus] = useState<'idle' | 'locating' | 'denied' | 'error'>('idle');
-  const [message, setMessage] = useState<string | null>(null);
+  // The message is stored as a key, not a string, so switching language
+  // re-renders it rather than leaving the previous language's text on screen.
+  const [messageKey, setMessageKey] = useState<
+    'location.denied' | 'location.failed' | 'location.unsupported' | null
+  >(null);
 
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
@@ -40,12 +46,12 @@ export function LocationStep({ value, onChange }: Props) {
   const requestGps = useCallback(() => {
     if (!('geolocation' in navigator)) {
       setStatus('error');
-      setMessage('This browser cannot report your location. Drop a pin on the map instead.');
+      setMessageKey('location.unsupported');
       return;
     }
 
     setStatus('locating');
-    setMessage(null);
+    setMessageKey(null);
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -58,12 +64,9 @@ export function LocationStep({ value, onChange }: Props) {
         });
       },
       (error) => {
-        setStatus(error.code === error.PERMISSION_DENIED ? 'denied' : 'error');
-        setMessage(
-          error.code === error.PERMISSION_DENIED
-            ? 'Location permission is off. Drag the pin to where the tree is, or upload a photo taken next to it.'
-            : 'Could not get a GPS fix. Drag the pin to where the tree is.',
-        );
+        const denied = error.code === error.PERMISSION_DENIED;
+        setStatus(denied ? 'denied' : 'error');
+        setMessageKey(denied ? 'location.denied' : 'location.failed');
       },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
     );
@@ -184,7 +187,7 @@ export function LocationStep({ value, onChange }: Props) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn-secondary" onClick={requestGps}>
-          {status === 'locating' ? 'Finding you…' : '📍 Use my location'}
+          {status === 'locating' ? t('location.finding') : `📍 ${t('location.useMine')}`}
         </button>
         {value ? (
           <p className="text-sm text-stone-600">
@@ -199,11 +202,11 @@ export function LocationStep({ value, onChange }: Props) {
             </span>
           </p>
         ) : (
-          <p className="text-sm text-stone-500">No position yet — tap the map to drop a pin.</p>
+          <p className="text-sm text-stone-500">{t('location.none')}</p>
         )}
       </div>
 
-      {message ? (
+      {messageKey ? (
         <p
           className={`rounded-lg border p-3 text-sm ${
             status === 'denied'
@@ -211,7 +214,7 @@ export function LocationStep({ value, onChange }: Props) {
               : 'border-stone-300 bg-stone-50 text-stone-700'
           }`}
         >
-          {message}
+          {t(messageKey)}
         </p>
       ) : null}
 
@@ -220,9 +223,7 @@ export function LocationStep({ value, onChange }: Props) {
         className="h-64 w-full overflow-hidden rounded-xl border border-stone-300 sm:h-72"
         data-testid="location-map"
       />
-      <p className="text-xs text-stone-500">
-        Tap the map or drag the pin to correct the position.
-      </p>
+      <p className="text-xs text-stone-500">{t('location.hint')}</p>
     </div>
   );
 }

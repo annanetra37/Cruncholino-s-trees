@@ -74,8 +74,11 @@ history, list view, summary stats bar.
 
 T7.1 (magic link, no passwords), T7.2 (role enforcement — a contributor cannot
 PATCH another user's tree; unit-tested and verified against the running app) and
-T7.3 (public-read mode with optional coordinate fuzzing) are all done. The T7.3
-decision itself is open — see `docs/DECISIONS.md`.
+T7.3 are all done. **T7.3 is decided: the dashboard is login-gated**
+(`PUBLIC_READ=false`). Anonymous visitors are redirected from `/dashboard`,
+`/add`, `/my-trees` and `/admin`, and every read endpoint returns 401 —
+verified against the running app. Coordinate fuzzing remains available for the
+case where the map is opened up later.
 
 ## E8 — Admin and data quality
 
@@ -101,13 +104,28 @@ Dockerfile's runtime stage depends on: `.next/standalone` assembled by hand and
 run with `node server.js` serves pages, static assets, the PWA files and a
 healthy `/api/health` against a real database.
 
+## Internationalisation (Q4)
+
+Not in the original epic list — the spec asked whether Armenian was needed at
+launch, and it is.
+
+| Piece | Where |
+|---|---|
+| Message catalogues | `src/i18n/messages/{en,hy}.ts`, Armenian typed against English so a missing key fails the build |
+| Locale resolution | Cookie, then `Accept-Language`, then English (`src/i18n/server.ts`) |
+| Language switcher | In the navigation bar; the choice is a cookie, so a shared link does not force a language on the recipient |
+| Enum labels | `src/lib/constants.ts` carries message keys, not English strings, so the legend, filters, form and table cannot drift apart |
+| Species names | Both languages shown wherever species appear; search matches either |
+| Dates and numbers | Formatted per locale |
+| `<html lang>` | Follows the locale, so a screen reader pronounces Armenian as Armenian |
+
 ## E10 — Testing and hardening
 
 | Task | Status | Notes |
 |---|---|---|
-| T10.1 Unit tests | Done | 53 tests: filter parsing, SQL building, geocode normalisation, cache keys, authorisation, rate limiting, revision diffs |
+| T10.1 Unit tests | Done | 83 tests: filter parsing, SQL building, geocode normalisation, cache keys, authorisation, rate limiting, revision diffs |
 | T10.2 Integration tests | Done | 10 tests against real Postgres + PostGIS |
-| T10.3 E2E | Done | Playwright, both critical paths, mobile and desktop projects — 18 tests, all passing, including the capture flow completing while the geocoder returns 403 |
+| T10.3 E2E | Done | Playwright, mobile and desktop — the two critical paths, the login gate, and the language switch; including the capture flow completing while the geocoder returns 403 |
 | T10.4 Error tracking | **Not done** | No Sentry. Structured logs carry request ids; wiring Sentry is a dependency and a DSN, and is the first thing to add before real traffic |
 | T10.5 Structured logging | Done | One JSON line per request, request id threaded through and returned in `x-request-id` |
 | T10.6 `/api/health` | Done | Checks the database; wired to Railway's healthcheck |

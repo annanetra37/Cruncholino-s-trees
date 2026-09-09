@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { AGE_BANDS, CATEGORIES, CONDITIONS } from '@/lib/constants';
 import { renderMarker } from '@/lib/client/markers';
+import { useT } from '@/i18n/client';
 
 function ShapeSwatch({ shape, color }: { shape: string; color: string }) {
   const [dataUrl] = useState(() => {
@@ -32,6 +33,7 @@ function ShapeSwatch({ shape, color }: { shape: string; color: string }) {
 
 export function MapLegend() {
   const [open, setOpen] = useState(true);
+  const t = useT();
 
   return (
     <div className="pointer-events-auto max-w-64 rounded-lg border border-stone-200 bg-white/95 p-3 text-xs shadow-lg backdrop-blur">
@@ -41,14 +43,14 @@ export function MapLegend() {
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
-        Legend
+        {t('legend.title')}
         <span aria-hidden>{open ? '−' : '+'}</span>
       </button>
 
       {open ? (
         <div className="space-y-3">
           <div>
-            <p className="mb-1 font-semibold text-stone-500">Colour — condition</p>
+            <p className="mb-1 font-semibold text-stone-500">{t('legend.colour')}</p>
             <ul className="space-y-1">
               {CONDITIONS.map((entry) => (
                 <li key={entry.value} className="flex items-center gap-2">
@@ -56,26 +58,26 @@ export function MapLegend() {
                     className="size-3 rounded-full ring-1 ring-black/20"
                     style={{ backgroundColor: entry.color }}
                   />
-                  {entry.label}
+                  {t(entry.labelKey)}
                 </li>
               ))}
             </ul>
           </div>
 
           <div>
-            <p className="mb-1 font-semibold text-stone-500">Shape — category</p>
+            <p className="mb-1 font-semibold text-stone-500">{t('legend.shape')}</p>
             <ul className="space-y-1">
               {CATEGORIES.map((entry) => (
                 <li key={entry.value} className="flex items-center gap-2">
                   <ShapeSwatch shape={entry.shape} color="#6b7280" />
-                  {entry.label}
+                  {t(entry.labelKey)}
                 </li>
               ))}
             </ul>
           </div>
 
           <div>
-            <p className="mb-1 font-semibold text-stone-500">Size — age</p>
+            <p className="mb-1 font-semibold text-stone-500">{t('legend.size')}</p>
             <ul className="flex items-end gap-3">
               {AGE_BANDS.filter((entry) => entry.value !== 'UNKNOWN').map((entry) => (
                 <li key={entry.value} className="flex flex-col items-center gap-1">
@@ -83,7 +85,7 @@ export function MapLegend() {
                     className="rounded-full bg-stone-400 ring-1 ring-black/20"
                     style={{ width: entry.radius * 2, height: entry.radius * 2 }}
                   />
-                  {entry.label}
+                  {t(entry.labelKey)}
                 </li>
               ))}
             </ul>

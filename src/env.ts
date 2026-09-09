@@ -33,7 +33,20 @@ const envSchema = z.object({
   AUTH_DEV_LOGIN: booleanish.default(false),
 
   // --- Geocoding ----------------------------------------------------------
-  GEOCODING_PROVIDER: z.enum(['nominatim', 'maptiler', 'none']).default('nominatim'),
+  /**
+   * Decided (Q2): a free provider.
+   *
+   *   nominatim — OpenStreetMap's own. Free, no key, the best address detail
+   *               for Armenia. Its usage policy caps requests at one per
+   *               second and forbids bulk use, which the throttle and the
+   *               coordinate cache between them keep this app well inside.
+   *   photon    — Komoot's OSM geocoder. Free, no key, no account, no hard
+   *               rate limit published. The fallback if Nominatim starts
+   *               refusing requests.
+   *   maptiler  — paid, keyed. Here for the day the volume justifies it.
+   *   none      — disables lookups; trees are stored with coordinates only.
+   */
+  GEOCODING_PROVIDER: z.enum(['nominatim', 'photon', 'maptiler', 'none']).default('nominatim'),
   GEOCODING_API_KEY: z.string().optional(),
   GEOCODING_BASE_URL: z.string().optional(),
   GEOCODING_USER_AGENT: z.string().default('cruncholino-trees/0.1 (+https://example.org)'),
@@ -57,11 +70,23 @@ const envSchema = z.object({
   R2_PUBLIC_URL: z.string().optional(),
 
   // --- Behaviour switches -------------------------------------------------
-  /** T7.3: is the dashboard readable without an account? */
-  PUBLIC_READ: booleanish.default(true),
-  /** T7.3: round public coordinates to ~100 m for anonymous viewers. */
+  /**
+   * T7.3, decided: the dashboard is login-gated. Tree locations — including
+   * trees in private gardens — are visible only to people with an account.
+   *
+   * Setting this to `true` publishes every coordinate in the database to
+   * anyone with the URL. That is a decision about other people's property, not
+   * a configuration preference, so the default is the closed one.
+   */
+  PUBLIC_READ: booleanish.default(false),
+  /**
+   * Rounds coordinates to ~110 m for signed-out viewers. Only has any effect
+   * when PUBLIC_READ is true — with the dashboard gated there are no
+   * signed-out viewers to protect — and is kept for the case where opening it
+   * up later is worth doing with a privacy margin.
+   */
   FUZZ_PUBLIC_COORDINATES: booleanish.default(false),
-  /** New submissions land in DRAFT and need a reviewer. */
+  /** Decided: submissions publish immediately; no review queue in the path. */
   MODERATION_ENABLED: booleanish.default(false),
   /** T3.9: radius for the same-species duplicate warning. */
   DUPLICATE_RADIUS_M: z.coerce.number().positive().default(5),

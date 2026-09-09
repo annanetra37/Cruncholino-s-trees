@@ -17,6 +17,7 @@ import { StatsBar } from '@/components/StatsBar';
 import { TreeDetailPanel } from '@/components/TreeDetailPanel';
 import { TreeListView } from '@/components/TreeListView';
 import { apiFetch } from '@/lib/client/api';
+import { useT } from '@/i18n/client';
 import type {
   LocationFilters,
   SpeciesOption,
@@ -71,6 +72,7 @@ export function DashboardView({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useT();
 
   const filters = useMemo(
     () => filtersFromParams(new URLSearchParams(searchParams.toString())),
@@ -181,7 +183,7 @@ export function DashboardView({
         <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
           {error}
           <button type="button" className="btn-ghost ml-2" onClick={() => setError(null)}>
-            Dismiss
+            {t('common.dismiss')}
           </button>
         </div>
       ) : null}
@@ -199,7 +201,7 @@ export function DashboardView({
               }`}
               onClick={() => setParams((params) => params.set('view', option))}
             >
-              {option}
+              {option === 'map' ? t('dashboard.map') : t('dashboard.list')}
             </button>
           ))}
         </div>
@@ -209,12 +211,12 @@ export function DashboardView({
           className="btn-ghost lg:hidden"
           onClick={() => setPanelOpen((value) => !value)}
         >
-          Filters
+          {t('dashboard.filters')}
         </button>
 
         {canExport ? (
           <a className="btn-ghost ml-auto" href={`/api/export?format=csv&${filterQuery}`}>
-            Export CSV
+            {t('dashboard.exportCsv')}
           </a>
         ) : null}
       </div>
@@ -234,7 +236,7 @@ export function DashboardView({
           />
           <div className="border-t border-stone-200 p-3 lg:hidden">
             <button type="button" className="btn-primary w-full" onClick={() => setPanelOpen(false)}>
-              Show {stats ? stats.total.toLocaleString() : ''} results
+              {t('filters.showResults', { count: stats ? stats.total.toLocaleString() : '' })}
             </button>
           </div>
         </div>
@@ -253,7 +255,7 @@ export function DashboardView({
               </div>
               {features.clustered ? (
                 <div className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-full bg-stone-900/80 px-3 py-1.5 text-xs text-white">
-                  Showing clusters — zoom in for individual trees
+                  {t('dashboard.clustered')}
                 </div>
               ) : null}
             </>

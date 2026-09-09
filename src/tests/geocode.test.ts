@@ -1,7 +1,11 @@
 /** T10.1 — geocode normalisation and the coordinate cache key. */
 import { describe, expect, it } from 'vitest';
 import { cacheKey } from '@/lib/geocode';
-import { normaliseMapTiler, normaliseNominatim } from '@/lib/geocode/normalise';
+import {
+  normaliseMapTiler,
+  normaliseNominatim,
+  normalisePhoton,
+} from '@/lib/geocode/normalise';
 
 describe('cacheKey', () => {
   it('rounds to ~11 m so a street costs one lookup, not forty', () => {
@@ -44,6 +48,13 @@ describe('normaliseNominatim', () => {
     expect(result.addressLine).toBe('Somewhere');
   });
 
+  it('canonicalises the marz it returns', () => {
+    const result = normaliseNominatim({
+      address: { village: 'Panik', state: 'Shirak Province', country_code: 'am' },
+    });
+    expect(result.region).toBe('Shirak');
+  });
+
   it('survives junk without throwing', () => {
     expect(normaliseNominatim(null).city).toBeNull();
     expect(normaliseNominatim('nonsense').city).toBeNull();
@@ -76,5 +87,43 @@ describe('normaliseMapTiler', () => {
 
   it('returns empty for a response with no features', () => {
     expect(normaliseMapTiler({ features: [] }).city).toBeNull();
+  });
+});
+
+describe('normalisePhoton', () => {
+  it('reads the free keyless provider’s response', () => {
+    const result = normalisePhoton({
+      features: [
+        {
+          properties: {
+            name: 'Abovyan Street',
+            street: 'Abovyan Street',
+            housenumber: '14',
+            city: 'Yerevan',
+            state: 'Yerevan',
+            country: 'Armenia',
+            countrycode: 'am',
+            postcode: '0009',
+          },
+        },
+      ],
+    });
+    expect(result.addressLine).toBe('Abovyan Street 14');
+    expect(result.city).toBe('Yerevan');
+    expect(result.countryCode).toBe('AM');
+    expect(result.postalCode).toBe('0009');
+  });
+
+  it('canonicalises the marz like every other provider', () => {
+    const result = normalisePhoton({
+      features: [{ properties: { name: 'Somewhere', state: 'Shirak Province', countrycode: 'am' } }],
+    });
+    expect(result.region).toBe('Shirak');
+  });
+
+  it('survives an empty or malformed response', () => {
+    expect(normalisePhoton({ features: [] }).city).toBeNull();
+    expect(normalisePhoton(null).city).toBeNull();
+    expect(normalisePhoton('nope').city).toBeNull();
   });
 });

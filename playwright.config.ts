@@ -46,6 +46,12 @@ export default defineConfig({
       AUTH_URL: baseURL,
       AUTH_TRUST_HOST: 'true',
       AUTH_SECRET: process.env.AUTH_SECRET ?? 'e2e-secret-value-at-least-16-chars',
+      // The suite asserts the behaviour this app ships with, not whatever a
+      // developer happens to have in their .env — Next loads that file into the
+      // dev server, and a local override would silently turn the login-gate
+      // test into a no-op.
+      PUBLIC_READ: 'false',
+      MODERATION_ENABLED: 'false',
     },
   },
 });

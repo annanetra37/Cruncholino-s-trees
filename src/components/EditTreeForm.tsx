@@ -7,6 +7,7 @@ import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { SpeciesPicker } from '@/components/SpeciesPicker';
 import { LocationStep, type PickedLocation } from '@/components/LocationStep';
 import { AGE_BANDS, CONDITIONS, FRUIT_QUALITIES, TREE_STATUSES } from '@/lib/constants';
+import { useT } from '@/i18n/client';
 import { ApiClientError, apiFetch } from '@/lib/client/api';
 import type { SpeciesOption } from '@/lib/client/types';
 
@@ -35,6 +36,7 @@ export function EditTreeForm({
   canModerate: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
 
   const [speciesId, setSpeciesId] = useState(tree.speciesId);
   const [condition, setCondition] = useState(tree.condition);
@@ -85,57 +87,65 @@ export function EditTreeForm({
       setSaved(true);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof ApiClientError ? cause.message : 'Could not save');
+      setError(cause instanceof ApiClientError ? cause.message : t('edit.failed'));
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async () => {
-    if (!confirm('Remove this tree? A reviewer can restore it later.')) return;
+    if (!confirm(t('edit.confirmRemove'))) return;
     try {
       await apiFetch(`/api/trees/${tree.id}`, { method: 'DELETE' });
       router.push('/my-trees');
     } catch (cause) {
-      setError(cause instanceof ApiClientError ? cause.message : 'Could not delete');
+      setError(cause instanceof ApiClientError ? cause.message : t('edit.deleteFailed'));
     }
   };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4">
-      <h1 className="text-2xl font-bold">Edit tree</h1>
+      <h1 className="text-2xl font-bold">{t('edit.title')}</h1>
 
       <section className="card p-4">
         <SpeciesPicker species={species} value={speciesId} onChange={setSpeciesId} />
       </section>
 
       <section className="card space-y-5 p-4">
-        <ChoiceGroup legend="Condition" options={CONDITIONS} value={condition} onChange={setCondition} />
         <ChoiceGroup
-          legend="Fruit quality"
+          legendKey="detail.condition"
+          options={CONDITIONS}
+          value={condition}
+          onChange={setCondition}
+        />
+        <ChoiceGroup
+          legendKey="field.fruitQuality"
           options={FRUIT_QUALITIES}
           value={fruitQuality}
           onChange={setFruitQuality}
         />
-        <ChoiceGroup legend="Age" options={AGE_BANDS} value={ageBand} onChange={setAgeBand} />
+        <ChoiceGroup
+          legendKey="field.age"
+          options={AGE_BANDS}
+          value={ageBand}
+          onChange={setAgeBand}
+        />
       </section>
 
       <section className="card space-y-4 p-4">
-        <h2 className="text-lg font-bold">Position</h2>
+        <h2 className="text-lg font-bold">{t('edit.position')}</h2>
         <LocationStep value={location} onChange={setLocation} />
         {moved ? (
-          <p className="text-sm text-amber-800">
-            The pin moved — the address will be looked up again when you save.
-          </p>
+          <p className="text-sm text-amber-800">{t('edit.moved')}</p>
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="field-label">City</span>
+            <span className="field-label">{t('field.city')}</span>
             <input className="field-input" value={city} onChange={(e) => setCity(e.target.value)} />
           </label>
           <label className="block">
-            <span className="field-label">Region</span>
+            <span className="field-label">{t('field.region')}</span>
             <input
               className="field-input"
               value={region}
@@ -147,7 +157,7 @@ export function EditTreeForm({
 
       <section className="card space-y-4 p-4">
         <label className="block">
-          <span className="field-label">Notes</span>
+          <span className="field-label">{t('field.notes')}</span>
           <textarea
             className="field-input min-h-24"
             value={notes}
@@ -158,7 +168,7 @@ export function EditTreeForm({
 
         {canModerate ? (
           <label className="block">
-            <span className="field-label">Status</span>
+            <span className="field-label">{t('field.status')}</span>
             <select
               className="field-input"
               value={status}
@@ -166,7 +176,7 @@ export function EditTreeForm({
             >
               {TREE_STATUSES.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </option>
               ))}
             </select>
@@ -177,21 +187,21 @@ export function EditTreeForm({
       {error ? (
         <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>
       ) : null}
-      {saved ? <p className="text-sm text-emerald-800">Saved.</p> : null}
+      {saved ? <p className="text-sm text-emerald-800">{t('edit.saved')}</p> : null}
 
       <div className="flex flex-wrap gap-3">
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
-          {saving ? 'Saving…' : 'Save changes'}
+          {saving ? t('common.saving') : t('edit.save')}
         </button>
         <button type="button" className="btn-secondary" onClick={() => router.back()}>
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           type="button"
           className="btn-ghost ml-auto text-red-700 hover:bg-red-50"
           onClick={remove}
         >
-          Remove tree
+          {t('edit.remove')}
         </button>
       </div>
     </div>
