@@ -10,21 +10,69 @@
 # so two containers starting together cannot race.
 set -e
 
-echo "Applying database migrations…"
+ATTEMPTS="${MIGRATE_ATTEMPTS:-6}"
+DELAY="${MIGRATE_RETRY_DELAY:-5}"
 
-# Captured rather than streamed, so the two failures that actually happen can be
-# turned into instructions instead of a Prisma error code.
-if OUTPUT=$(prisma migrate deploy --schema=./prisma/schema.prisma 2>&1); then
-  echo "$OUTPUT"
-  echo "Migrations applied."
-  exec node server.js
-fi
+n=1
+while true; do
+  echo "Applying database migrations… (attempt ${n}/${ATTEMPTS})"
+
+  # Captured rather than streamed, so the failures that actually happen can be
+  # turned into instructions instead of a Prisma error code.
+  if OUTPUT=$(prisma migrate deploy --schema=./prisma/schema.prisma 2>&1); then
+    echo "$OUTPUT"
+    echo "Migrations applied."
+    exec node server.js
+  fi
+
+  # A database that is merely still booting is the one failure worth waiting
+  # out: on a fresh deploy the app and the database often start together, and
+  # private DNS can take a few seconds to answer. Every other failure is a
+  # configuration problem that will not fix itself, so fail fast on those.
+  case "$OUTPUT" in
+    *P1001*|*"Can't reach database server"*)
+      if [ "$n" -lt "$ATTEMPTS" ]; then
+        echo "Database not reachable yet — retrying in ${DELAY}s." >&2
+        n=$((n + 1))
+        sleep "$DELAY"
+        continue
+      fi
+      ;;
+  esac
+
+  break
+done
 
 echo "$OUTPUT" >&2
 echo "" >&2
 echo "======================================================================" >&2
 
 case "$OUTPUT" in
+  *P1001*|*"Can't reach database server"*)
+    cat >&2 <<'MSG'
+The database host in DATABASE_URL is not answering. The app is reaching for a
+database that is not there — this is almost always DATABASE_URL still pointing
+at an old or renamed service.
+
+Check, in this order:
+
+  1. The host in the error above. It is whatever DATABASE_URL says. Does a
+     service with that exact name exist and is it deployed and green?
+     A service named "postgis" has the private host "postgis.railway.internal".
+     Rename the service and this host changes with it.
+
+  2. The database name at the end of DATABASE_URL. It must match POSTGRES_DB on
+     the database service. Railway's own template uses "railway"; a database
+     deployed from the postgis image uses whatever POSTGRES_DB says.
+
+  3. That DATABASE_URL is built by hand for a Docker-image database:
+       postgresql://USER:PASSWORD@SERVICE.RAILWAY_PRIVATE_DOMAIN:5432/DBNAME
+     ${{Postgres.DATABASE_URL}} only exists for Railway's own Postgres
+     template, and resolves to nothing for a database deployed from an image.
+
+See docs/RUNBOOK.md section 2.1.
+MSG
+    ;;
   *'extension "postgis"'*|*'type "geography" does not exist'*)
     cat >&2 <<'MSG'
 This database does not have PostGIS, and this app cannot work without it.
@@ -32,15 +80,16 @@ This database does not have PostGIS, and this app cannot work without it.
 Railway's stock PostgreSQL template does not include PostGIS. The database has
 to be deployed from the postgis/postgis image instead:
 
-  1. New -> Empty Service -> Deploy from Docker image: postgis/postgis:16-3.4
-  2. Variables: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB,
+  1. New -> Docker Image: postgis/postgis:16-3.4
+     (not "Database", which is the stock template, and not "Empty Service")
+  2. Name the service, e.g. "postgis".
+  3. Variables: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB,
      and PGDATA=/var/lib/postgresql/data/pgdata
-  3. Attach a volume mounted at /var/lib/postgresql/data
-  4. Point this service's DATABASE_URL at the new database:
-       DATABASE_URL=${{Postgres.DATABASE_URL}}
+  4. Attach a volume mounted at /var/lib/postgresql/data
+  5. On the web service, set DATABASE_URL by hand:
+       postgresql://USER:PASSWORD@${{postgis.RAILWAY_PRIVATE_DOMAIN}}:5432/DBNAME
 
-Full instructions, including why PGDATA needs a subdirectory, are in
-docs/RUNBOOK.md section 2.1.
+Full instructions are in docs/RUNBOOK.md section 2.1.
 MSG
     ;;
   *P3009*|*'failed migrations'*)
