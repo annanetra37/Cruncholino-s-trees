@@ -71,9 +71,11 @@ jobs:
         run: pnpm test
 
       - name: Dependency audit
-        # Advisory: a new advisory against a transitive dependency should be
-        # visible in the PR without blocking an unrelated change from merging.
-        run: pnpm audit --audit-level high || true
+        # Blocking, not advisory. Railway refuses to deploy a project with
+        # known-vulnerable dependencies, so an advisory-only check here just
+        # moves the discovery to the deploy — after review, after merge, and
+        # with the release already in flight.
+        run: pnpm audit --audit-level high
 
   e2e:
     runs-on: ubuntu-latest

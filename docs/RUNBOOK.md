@@ -10,14 +10,14 @@ a key.
 
 Railway project, one per environment (`staging` and `production`), each with:
 
-| Service | What it is | Notes |
-|---|---|---|
-| `web` | The Next.js app | Built from `Dockerfile`, configured by `railway.json` |
-| `db` | PostgreSQL 16 + PostGIS | `postgis/postgis:16-3.4`, persistent volume at `/var/lib/postgresql/data` |
-| `cron-geocode` | `pnpm job:geocode-backfill` | Hourly. Retries failed address lookups |
-| `cron-orphans` | `pnpm job:orphan-cleanup` | Daily. Deletes unreferenced R2 objects |
-| `cron-backup` | `scripts/backup-to-r2.sh` | Daily. `pg_dump` to R2, on top of Railway's own backups |
-| `redis` | *not deployed* | Only needed when a second `web` replica arrives — see §9 |
+| Service        | What it is                  | Notes                                                                     |
+| -------------- | --------------------------- | ------------------------------------------------------------------------- |
+| `web`          | The Next.js app             | Built from `Dockerfile`, configured by `railway.json`                     |
+| `db`           | PostgreSQL 16 + PostGIS     | `postgis/postgis:16-3.4`, persistent volume at `/var/lib/postgresql/data` |
+| `cron-geocode` | `pnpm job:geocode-backfill` | Hourly. Retries failed address lookups                                    |
+| `cron-orphans` | `pnpm job:orphan-cleanup`   | Daily. Deletes unreferenced R2 objects                                    |
+| `cron-backup`  | `scripts/backup-to-r2.sh`   | Daily. `pg_dump` to R2, on top of Railway's own backups                   |
+| `redis`        | _not deployed_              | Only needed when a second `web` replica arrives — see §9                  |
 
 ---
 
@@ -61,11 +61,11 @@ For each job: **New → Empty Service**, same repo, then set the start command a
 a cron schedule under Settings → Cron Schedule. They share the `web` service's
 variables (`DATABASE_URL`, `GEOCODING_*`, `R2_*`).
 
-| Service | Start command | Schedule |
-|---|---|---|
-| `cron-geocode` | `pnpm job:geocode-backfill` | `0 * * * *` |
-| `cron-orphans` | `pnpm job:orphan-cleanup` | `30 3 * * *` |
-| `cron-backup` | `bash scripts/backup-to-r2.sh` | `0 2 * * *` |
+| Service        | Start command                  | Schedule     |
+| -------------- | ------------------------------ | ------------ |
+| `cron-geocode` | `pnpm job:geocode-backfill`    | `0 * * * *`  |
+| `cron-orphans` | `pnpm job:orphan-cleanup`      | `30 3 * * *` |
+| `cron-backup`  | `bash scripts/backup-to-r2.sh` | `0 2 * * *`  |
 
 Cron services must exit when finished. All three do.
 
@@ -87,19 +87,19 @@ password rotation takes the site down and nobody remembers why.
 The full list, and what each one does, is in `.env.example`. The ones that must
 be set in production:
 
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
-| `AUTH_SECRET` | `openssl rand -base64 32` |
-| `AUTH_URL` | `https://<your domain>` |
-| `EMAIL_SERVER` | SMTP URL for magic links |
-| `EMAIL_FROM` | The From address |
-| `GEOCODING_PROVIDER` | `nominatim` (free; `photon` is the keyless fallback — see §8) |
-| `GEOCODING_MIN_INTERVAL_MS` | `1100` for Nominatim; `0` only for a paid provider |
-| `NEXT_PUBLIC_MAP_STYLE_URL` | Tile style URL |
+| Variable                    | Value                                                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`              | `${{Postgres.DATABASE_URL}}`                                                                                            |
+| `AUTH_SECRET`               | `openssl rand -base64 32`                                                                                               |
+| `AUTH_URL`                  | `https://<your domain>`                                                                                                 |
+| `EMAIL_SERVER`              | SMTP URL for magic links                                                                                                |
+| `EMAIL_FROM`                | The From address                                                                                                        |
+| `GEOCODING_PROVIDER`        | `nominatim` (free; `photon` is the keyless fallback — see §8)                                                           |
+| `GEOCODING_MIN_INTERVAL_MS` | `1100` for Nominatim; `0` only for a paid provider                                                                      |
+| `NEXT_PUBLIC_MAP_STYLE_URL` | Tile style URL                                                                                                          |
 | `NEXT_PUBLIC_MAP_TILES_KEY` | Tile key — **public by design**, it ships in the browser bundle. Restrict it by HTTP referrer in the provider's console |
-| `R2_*` | Photo storage, if photos are enabled |
-| `PUBLIC_READ` | `false` — the dashboard is login-gated. See §10 before changing it |
+| `R2_*`                      | Photo storage, if photos are enabled                                                                                    |
+| `PUBLIC_READ`               | `false` — the dashboard is login-gated. See §10 before changing it                                                      |
 
 `AUTH_DEV_LOGIN` must never be set in production. The code refuses it when
 `NODE_ENV=production`, but do not rely on that alone.
@@ -129,18 +129,50 @@ railway up --service web
 
 ---
 
+## 4a. When a deploy is refused for vulnerable dependencies
+
+Railway scans `pnpm-lock.yaml` before building and **refuses to deploy** a
+project with known-vulnerable packages. The message names the package, the
+severity and the version to upgrade to.
+
+This is not a Railway problem to work around — it is the correct answer to a
+real advisory. Fix it in the repository:
+
+```sh
+pnpm audit --audit-level high        # what CI checks, and what Railway checks
+pnpm audit --json | jq '.advisories[] | {module_name, severity, patched_versions}'
+```
+
+Then bump the named package, run `pnpm install`, and verify before pushing:
+
+```sh
+pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e
+```
+
+The end-to-end suite matters here more than usual: a security patch can arrive
+inside a major version bump — MapLibre 6 dropped its default export, for
+instance — and typecheck alone will not tell you the map still renders.
+
+For a transitive dependency no direct bump reaches, pin it with a `pnpm.overrides`
+entry in `package.json`. There are four such pins today (`@auth/core`,
+`postcss`, `sharp`, `deepmerge-ts`); each can be dropped once the package that
+pulls it in ships a fixed range of its own.
+
+CI runs the same audit and fails on high or critical, so this should be caught
+in the pull request rather than at deploy time.
+
 ## 5. Rolling back
 
 **The app:** Railway → Deployments → the last known-good deployment → **Redeploy**.
 Instant, and it does not touch the database.
 
-**A migration:** rolling the app back does *not* roll back a migration. Prisma
+**A migration:** rolling the app back does _not_ roll back a migration. Prisma
 has no down-migrations by design. To undo one:
 
 1. Write a new migration that reverses it.
 2. Deploy that.
 
-If the migration destroyed data, restore from a backup (§7) into a *new*
+If the migration destroyed data, restore from a backup (§7) into a _new_
 database and copy the rows across. Do not restore over a live database while the
 app is serving.
 
@@ -218,13 +250,13 @@ Record the date of the last successful drill here:
 
 ## 8. Rotating keys
 
-| Key | How |
-|---|---|
-| `AUTH_SECRET` | Generate a new one and set it. Every session is invalidated — everyone signs in again. Do it deliberately, not on a Friday |
-| Database password | Change it on the `db` service. `DATABASE_URL` follows automatically *because it is a reference variable* |
-| `GEOCODING_API_KEY` | Create the new key at the provider, set it, deploy, then revoke the old one. In that order |
-| `R2_*` | Create a new API token in Cloudflare with the same bucket scope, set it, deploy, revoke the old one |
-| `NEXT_PUBLIC_MAP_TILES_KEY` | This is in the browser bundle and cannot be secret. Restrict it by referrer and monitor usage instead |
+| Key                         | How                                                                                                                        |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_SECRET`               | Generate a new one and set it. Every session is invalidated — everyone signs in again. Do it deliberately, not on a Friday |
+| Database password           | Change it on the `db` service. `DATABASE_URL` follows automatically _because it is a reference variable_                   |
+| `GEOCODING_API_KEY`         | Create the new key at the provider, set it, deploy, then revoke the old one. In that order                                 |
+| `R2_*`                      | Create a new API token in Cloudflare with the same bucket scope, set it, deploy, revoke the old one                        |
+| `NEXT_PUBLIC_MAP_TILES_KEY` | This is in the browser bundle and cannot be secret. Restrict it by referrer and monitor usage instead                      |
 
 **Geocoding provider:** the deployment runs on Nominatim, which is free and
 needs no key. Its usage policy caps requests at one per second and forbids bulk

@@ -9,7 +9,16 @@
  * and unusable at 20,000.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl';
+// MapLibre 6 dropped its default export; everything is a named export now.
+import {
+  GeolocateControl,
+  MapLibreMap,
+  NavigationControl,
+  ScaleControl,
+  type GeoJSONSource,
+  type MapLayerMouseEvent,
+  type ErrorEvent,
+} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
 import { markerIconExpression, registerMarkerImages } from '@/lib/client/markers';
@@ -68,7 +77,7 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
   useEffect(() => {
     if (!container.current || map.current) return;
 
-    const instance = new maplibregl.Map({
+    const instance = new MapLibreMap({
       container: container.current,
       style: publicConfig.mapStyleUrl,
       center: publicConfig.mapDefaultCenter,
@@ -77,14 +86,14 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
     });
 
     map.current = instance;
-    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    instance.addControl(new NavigationControl({ showCompass: false }), 'top-right');
     instance.addControl(
-      new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }),
+      new GeolocateControl({ positionOptions: { enableHighAccuracy: true } }),
       'top-right',
     );
-    instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    instance.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-    instance.on('error', (event) => {
+    instance.on('error', (event: ErrorEvent) => {
       // A missing tile key is the single most common map failure and it is
       // silent by default; surface it rather than showing an empty grey box.
       const message = event.error?.message ?? 'Map failed to load';
@@ -144,17 +153,7 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
         layout: {
           'icon-image': markerIconExpression() as never,
           'icon-allow-overlap': true,
-          'icon-size': [
-            'match',
-            ['get', 'ageBand'],
-            'YOUNG',
-            0.5,
-            'MID',
-            0.68,
-            'OLD',
-            0.9,
-            0.58,
-          ],
+          'icon-size': ['match', ['get', 'ageBand'], 'YOUNG', 0.5, 'MID', 0.68, 'OLD', 0.9, 0.58],
         },
       });
 
@@ -166,13 +165,13 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
       instance.on('mouseenter', CLUSTER_LAYER, pointer('zoom-in'));
       instance.on('mouseleave', CLUSTER_LAYER, pointer(''));
 
-      instance.on('click', MARKER_LAYER, (event) => {
+      instance.on('click', MARKER_LAYER, (event: MapLayerMouseEvent) => {
         const id = event.features?.[0]?.properties?.id;
         if (typeof id === 'string') selectCallback.current(id);
       });
 
       // T5.3 — clicking a cluster zooms into it.
-      instance.on('click', CLUSTER_LAYER, (event) => {
+      instance.on('click', CLUSTER_LAYER, (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0];
         if (!feature || feature.geometry.type !== 'Point') return;
         const [longitude, latitude] = feature.geometry.coordinates as [number, number];
