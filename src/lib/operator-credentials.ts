@@ -35,30 +35,16 @@ export function secretsMatch(a: string, b: string): boolean {
 }
 
 /**
- * Passwords a person would plausibly copy out of documentation, which is
- * exactly how a bootstrap account ends up with the password `changeme` on a
- * public URL. Checked case-insensitively.
+ * Deliberately low. This guards against an empty or whitespace-only value —
+ * which would mean "no password at all", not "a short password" — and nothing
+ * else. Password strength is a judgement for whoever runs the deployment, and
+ * for a map of fruit trees a memorable one is a reasonable trade.
+ *
+ * What makes a short password survivable is the rate limit on the sign-in
+ * provider: ten attempts per address per minute, every attempt logged. That is
+ * where the protection lives, so leave it in place.
  */
-const REFUSED_PASSWORDS = new Set([
-  'password',
-  'password123',
-  'changeme',
-  'change-me',
-  'letmein',
-  'admin',
-  'admin123',
-  'secret',
-  'trees',
-  'cruncholino',
-  'qwerty',
-  '12345678',
-  '123456789',
-  '1234567890',
-  'your-password-here',
-  'operator',
-]);
-
-export const MIN_OPERATOR_PASSWORD_LENGTH = 12;
+export const MIN_OPERATOR_PASSWORD_LENGTH = 4;
 
 export type OperatorConfigProblem = { code: string; message: string };
 
@@ -88,19 +74,11 @@ export function validateOperatorConfig(
     });
   }
 
-  if (password) {
-    if (password.length < MIN_OPERATOR_PASSWORD_LENGTH) {
-      problems.push({
-        code: 'too_short',
-        message: `OPERATOR_PASSWORD must be at least ${MIN_OPERATOR_PASSWORD_LENGTH} characters`,
-      });
-    }
-    if (REFUSED_PASSWORDS.has(password.toLowerCase())) {
-      problems.push({
-        code: 'guessable',
-        message: 'OPERATOR_PASSWORD is one of the passwords everybody tries first',
-      });
-    }
+  if (password && password.trim().length < MIN_OPERATOR_PASSWORD_LENGTH) {
+    problems.push({
+      code: 'too_short',
+      message: `OPERATOR_PASSWORD must be at least ${MIN_OPERATOR_PASSWORD_LENGTH} characters`,
+    });
   }
 
   return problems;
