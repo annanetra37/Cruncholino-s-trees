@@ -47,6 +47,8 @@ export const hy: Messages = {
 
   'signin.title': 'Մուտք',
   'signin.subtitle': 'Կուղարկենք հղում էլ. փոստով — գաղտնաբառ հիշելու կարիք չկա։',
+  'signin.subtitlePassword': 'Մուտք գործիր էլ. հասցեով և գաղտնաբառով։',
+  'signin.subtitleBoth': 'Օգտագործիր գաղտնաբառը ստորև, կամ ստացիր մուտքի հղումը էլ. փոստով։',
   'signin.email': 'Էլ. հասցե',
   'signin.sendLink': 'Ուղարկել մուտքի հղումը',
   'signin.sending': 'Ուղարկվում է…',

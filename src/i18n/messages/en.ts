@@ -44,6 +44,8 @@ export const en = {
 
   'signin.title': 'Sign in',
   'signin.subtitle': 'We’ll email you a link — there’s no password to remember or lose.',
+  'signin.subtitlePassword': 'Sign in with your email and password.',
+  'signin.subtitleBoth': 'Use your password below, or have a sign-in link emailed to you instead.',
   'signin.email': 'Email address',
   'signin.sendLink': 'Email me a sign-in link',
   'signin.sending': 'Sending…',
