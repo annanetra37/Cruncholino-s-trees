@@ -51,6 +51,11 @@ export const en = {
   'signin.devHint':
     'Development sign-in is enabled: any address signs in immediately, no email sent. Try admin@example.org.',
   'signin.failed': 'Sign-in failed ({error}). Try again.',
+  'signin.errorConfiguration':
+    'We couldn’t send the email. This is a problem with the site’s mail settings, not with anything you did — retrying won’t help. Please tell whoever runs this site; the details are in the server log.',
+  'signin.errorVerification':
+    'That sign-in link has expired or has already been used. Request a new one below.',
+  'signin.errorAccessDenied': 'That account is not allowed to sign in.',
   'signin.noMethod':
     'No sign-in method is configured. Set EMAIL_SERVER for magic-link sign-in, or AUTH_DEV_LOGIN=true in development.',
   'signin.checkEmailTitle': 'Check your email',

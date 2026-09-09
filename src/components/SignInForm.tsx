@@ -41,8 +41,23 @@ export function SignInForm({
       }}
     >
       {error ? (
-        <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-          {t('signin.failed', { error })}
+        <p
+          role="alert"
+          className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"
+        >
+          {/*
+            Auth.js reports an unreachable mail server and a malformed config
+            with the same `Configuration` code, and "Try again" is actively
+            wrong for both — nothing the person does at this form can fix
+            either. Say so, and point at who can.
+          */}
+          {error === 'Configuration'
+            ? t('signin.errorConfiguration')
+            : error === 'Verification'
+              ? t('signin.errorVerification')
+              : error === 'AccessDenied'
+                ? t('signin.errorAccessDenied')
+                : t('signin.failed', { error })}
         </p>
       ) : null}
 
@@ -63,9 +78,7 @@ export function SignInForm({
         {busy ? t('signin.sending') : hasEmail ? t('signin.sendLink') : t('signin.devButton')}
       </button>
 
-      {hasDevLogin ? (
-        <p className="text-xs text-stone-500">{t('signin.devHint')}</p>
-      ) : null}
+      {hasDevLogin ? <p className="text-xs text-stone-500">{t('signin.devHint')}</p> : null}
     </form>
   );
 }

@@ -93,6 +93,24 @@ export const authConfig: NextAuthConfig = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   trustHost: env.AUTH_TRUST_HOST,
   secret: env.AUTH_SECRET,
+  /**
+   * Auth.js reports every provider-level failure to the browser as
+   * `?error=Configuration`, which tells nobody anything — an unreachable SMTP
+   * host and a genuinely malformed config look identical. The real cause only
+   * exists here, so it goes through the structured logger rather than to a
+   * bare console, and can be filtered out of Railway's log stream by level.
+   */
+  logger: {
+    error(error) {
+      logger.error('auth error', { error, name: error.name, cause: error.cause });
+    },
+    warn(code) {
+      logger.warn('auth warning', { code });
+    },
+    debug(message, metadata) {
+      logger.debug('auth debug', { message, metadata });
+    },
+  },
   pages: {
     signIn: '/signin',
     verifyRequest: '/signin/check-email',

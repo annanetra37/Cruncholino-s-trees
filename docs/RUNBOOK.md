@@ -233,6 +233,40 @@ pulls it in ships a fixed range of its own.
 CI runs the same audit and fails on high or critical, so this should be caught
 in the pull request rather than at deploy time.
 
+## 4b. "Sign-in failed (Configuration)"
+
+This is Auth.js's label for _any_ failure inside a sign-in provider, and it is
+misleading: nine times in ten it means the app could not reach the SMTP server,
+not that the configuration is malformed. Retrying achieves nothing.
+
+The real cause is only in the server log. It is logged through the structured
+logger, so:
+
+```sh
+railway logs --service web --json | jq 'select(.message=="auth error")'
+```
+
+Common causes, in the order worth checking:
+
+| What the log says                                 | What it means                                                                                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `Connection timeout`, `ECONNREFUSED`, `ENOTFOUND` | `EMAIL_SERVER` points at a host that isn't answering — most often the placeholder `smtp.example.org` was never replaced         |
+| `Invalid login`, `535`, `Authentication failed`   | Wrong username or key. With Resend the username is the literal word `resend`, not an email address; the password is the API key |
+| `Missing credentials`                             | The URL is malformed — check it is `smtp://user:password@host:port` with no spaces around it                                    |
+| `MissingAdapter` / `MissingAdapterMethods`        | A genuine configuration problem: the database adapter is not wired up                                                           |
+
+To confirm the settings independently of the app, from any machine:
+
+```sh
+DEBUG=1 node -e "
+  const t = require('nodemailer').createTransport(process.env.EMAIL_SERVER);
+  t.verify().then(() => console.log('SMTP OK')).catch((e) => console.error('SMTP failed:', e.message));
+"
+```
+
+`verify()` opens a connection and authenticates without sending anything, which
+separates "credentials are wrong" from "the mail was sent and went to spam".
+
 ## 5. Rolling back
 
 **The app:** Railway → Deployments → the last known-good deployment → **Redeploy**.

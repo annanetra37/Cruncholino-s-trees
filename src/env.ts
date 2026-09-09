@@ -25,7 +25,16 @@ const envSchema = z.object({
 
   // --- Auth ---------------------------------------------------------------
   AUTH_SECRET: z.string().min(16, 'AUTH_SECRET must be at least 16 characters'),
-  AUTH_URL: z.url().optional(),
+  AUTH_URL: z
+    .url()
+    .refine((value) => !value.includes('${{'), {
+      // `https://${{RAILWAY_PUBLIC_DOMAIN}}` parses as a perfectly valid URL
+      // whose host is the literal template, so `z.url()` alone accepts it and
+      // the failure surfaces much later as an unexplained sign-in error.
+      message:
+        'AUTH_URL still contains an unexpanded ${{...}} reference — check the variable is spelled exactly as the platform expects',
+    })
+    .optional(),
   AUTH_TRUST_HOST: booleanish.default(true),
   EMAIL_SERVER: z.string().optional(),
   EMAIL_FROM: z.email().default('trees@example.org'),
@@ -55,9 +64,7 @@ const envSchema = z.object({
   GEOCODING_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(1100),
 
   // --- Map ----------------------------------------------------------------
-  NEXT_PUBLIC_MAP_STYLE_URL: z
-    .string()
-    .default('https://demotiles.maplibre.org/style.json'),
+  NEXT_PUBLIC_MAP_STYLE_URL: z.string().default('https://demotiles.maplibre.org/style.json'),
   NEXT_PUBLIC_MAP_TILES_KEY: z.string().optional(),
   NEXT_PUBLIC_MAP_DEFAULT_CENTER: z.string().default('44.5152,40.1872'),
   NEXT_PUBLIC_MAP_DEFAULT_ZOOM: z.coerce.number().default(11),
