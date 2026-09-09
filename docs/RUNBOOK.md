@@ -73,38 +73,83 @@ Cron services must exit when finished. All three do.
 
 ## 3. Variables (T9.4)
 
-`DATABASE_URL` is a **reference variable**, never a pasted literal:
+Set these on the **`web`** service. Copy-paste ready; the four marked **fill in**
+are the only ones that need a value from you.
 
 ```
 DATABASE_URL=${{Postgres.DATABASE_URL}}
+AUTH_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+AUTH_TRUST_HOST=true
+AUTH_SECRET=<fill in: openssl rand -base64 32>
+
+EMAIL_SERVER=<fill in: smtp://user:password@smtp.example.org:587>
+EMAIL_FROM=trees@<your domain>
+
+GEOCODING_PROVIDER=nominatim
+GEOCODING_USER_AGENT=cruncholino-trees/0.1 (+https://<your domain>)
+GEOCODING_TIMEOUT_MS=3000
+GEOCODING_MIN_INTERVAL_MS=1100
+
+NEXT_PUBLIC_MAP_STYLE_URL=https://api.maptiler.com/maps/streets-v2/style.json
+NEXT_PUBLIC_MAP_TILES_KEY=<fill in: free MapTiler key>
+NEXT_PUBLIC_MAP_DEFAULT_CENTER=44.5152,40.1872
+NEXT_PUBLIC_MAP_DEFAULT_ZOOM=11
+
+PUBLIC_READ=false
+FUZZ_PUBLIC_COORDINATES=false
+MODERATION_ENABLED=false
+DUPLICATE_RADIUS_M=5
+MAX_GEOJSON_FEATURES=5000
+MAX_PAGE_SIZE=200
+RATE_LIMIT_WRITES_PER_MINUTE=30
+LOG_LEVEL=info
 ```
 
-Railway resolves it to the private-network host (`*.railway.internal`), which
-keeps database traffic off the public internet and means rotating the password
-does not require editing the web service. If you paste the literal, the first
-password rotation takes the site down and nobody remembers why.
+Deliberately **not** set:
 
-The full list, and what each one does, is in `.env.example`. The ones that must
-be set in production:
+- `PORT` — Railway assigns it and the container reads it. Setting it by hand is
+  how you get a healthcheck that never passes.
+- `NODE_ENV` — the Dockerfile sets `production`.
+- `AUTH_DEV_LOGIN` — must never exist in production. The code refuses it when
+  `NODE_ENV=production`; do not rely on that alone.
+- `R2_*` — optional. Without them the app runs and photo upload reports itself
+  as unavailable, rather than failing when a contributor tries to use it.
 
-| Variable                    | Value                                                                                                                   |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | `${{Postgres.DATABASE_URL}}`                                                                                            |
-| `AUTH_SECRET`               | `openssl rand -base64 32`                                                                                               |
-| `AUTH_URL`                  | `https://<your domain>`                                                                                                 |
-| `EMAIL_SERVER`              | SMTP URL for magic links                                                                                                |
-| `EMAIL_FROM`                | The From address                                                                                                        |
-| `GEOCODING_PROVIDER`        | `nominatim` (free; `photon` is the keyless fallback — see §8)                                                           |
-| `GEOCODING_MIN_INTERVAL_MS` | `1100` for Nominatim; `0` only for a paid provider                                                                      |
-| `NEXT_PUBLIC_MAP_STYLE_URL` | Tile style URL                                                                                                          |
-| `NEXT_PUBLIC_MAP_TILES_KEY` | Tile key — **public by design**, it ships in the browser bundle. Restrict it by HTTP referrer in the provider's console |
-| `R2_*`                      | Photo storage, if photos are enabled                                                                                    |
-| `PUBLIC_READ`               | `false` — the dashboard is login-gated. See §10 before changing it                                                      |
+### Why these particular forms
 
-`AUTH_DEV_LOGIN` must never be set in production. The code refuses it when
-`NODE_ENV=production`, but do not rely on that alone.
+**`DATABASE_URL` is a reference variable, never a pasted literal.** Railway
+resolves `${{Postgres.DATABASE_URL}}` to the private-network host
+(`*.railway.internal`), which keeps database traffic off the public internet and
+means rotating the password does not require editing the web service. Paste the
+literal instead and the first password rotation takes the site down, months
+later, with nobody remembering why.
 
----
+**`AUTH_URL` uses Railway's own domain variable.** `${{RAILWAY_PUBLIC_DOMAIN}}`
+tracks the service's real domain, so a preview environment or a domain change
+does not silently break sign-in. Swap it for your custom domain once you have
+one — Auth.js compares the callback origin against this value, and a mismatch
+sends every sign-in attempt back to `/signin` with no explanation.
+
+**`EMAIL_SERVER` is not optional here.** The dashboard is login-gated and the
+only production sign-in method is the magic link, so without SMTP nobody —
+including you — can get in. Any provider with a free tier works; the value is a
+standard SMTP URL. Set `EMAIL_FROM` to an address on a domain that provider is
+allowed to send for, or the mail will be silently dropped as spam.
+
+**`GEOCODING_USER_AGENT` must identify you truthfully.** Nominatim's usage
+policy requires it and blocks requests without one. Put a real contact URL in
+it.
+
+**The `NEXT_PUBLIC_*` variables are read at build time, not run time.** They are
+inlined into the browser bundle by `next build`, which is why the Dockerfile
+declares them as build args. Two consequences: changing one needs a rebuild
+rather than a restart (a Railway redeploy does rebuild, so this is automatic),
+and `NEXT_PUBLIC_MAP_TILES_KEY` is **public by design** — it ships in the
+JavaScript every visitor downloads. Restrict it by HTTP referrer in the tile
+provider's console and watch the usage; that is the control, not secrecy.
+
+The full list of variables the app understands, with defaults, is in
+`.env.example`.
 
 ## 4. Deploying
 
