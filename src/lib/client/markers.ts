@@ -10,14 +10,19 @@
  * category × condition pair is drawn once into a canvas and registered as a map
  * image. Twenty-five small images, generated in a few milliseconds at load.
  */
-import type { Map as MapLibreMap } from 'maplibre-gl';
+import type { MapLibreMap } from 'maplibre-gl';
 import { CATEGORIES, CONDITIONS } from '@/lib/constants';
 
 const SIZE = 44; // drawn at 2× and scaled down, so it stays crisp on retina
 
 type Shape = (typeof CATEGORIES)[number]['shape'];
 
-function drawShape(context: CanvasRenderingContext2D, shape: Shape, center: number, radius: number) {
+function drawShape(
+  context: CanvasRenderingContext2D,
+  shape: Shape,
+  center: number,
+  radius: number,
+) {
   context.beginPath();
   switch (shape) {
     case 'triangle': {

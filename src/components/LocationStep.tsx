@@ -11,7 +11,14 @@
  * because the user tapped "block" once, months ago, on a different site.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import maplibregl, { type Map as MapLibreMap, type Marker } from 'maplibre-gl';
+// MapLibre 6 dropped its default export; everything is a named export now.
+import {
+  MapLibreMap,
+  Marker,
+  NavigationControl,
+  type GeoJSONSource,
+  type MapMouseEvent,
+} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
 import { useT } from '@/i18n/client';
@@ -81,7 +88,7 @@ export function LocationStep({ value, onChange }: Props) {
   useEffect(() => {
     if (!container.current || map.current) return;
 
-    const instance = new maplibregl.Map({
+    const instance = new MapLibreMap({
       container: container.current,
       style: publicConfig.mapStyleUrl,
       center: value ? [value.longitude, value.latitude] : publicConfig.mapDefaultCenter,
@@ -89,7 +96,7 @@ export function LocationStep({ value, onChange }: Props) {
     });
     map.current = instance;
 
-    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    instance.addControl(new NavigationControl({ showCompass: false }), 'top-right');
 
     instance.on('load', () => {
       instance.addSource('accuracy', {
@@ -122,7 +129,7 @@ export function LocationStep({ value, onChange }: Props) {
     });
 
     // Tapping the map moves the pin — the manual fallback (T4.1, route 3).
-    instance.on('click', (event) => {
+    instance.on('click', (event: MapMouseEvent) => {
       changeRef.current({
         latitude: event.lngLat.lat,
         longitude: event.lngLat.lng,
@@ -147,12 +154,15 @@ export function LocationStep({ value, onChange }: Props) {
     const position: [number, number] = [value.longitude, value.latitude];
 
     if (!marker.current) {
-      marker.current = new maplibregl.Marker({ draggable: true, color: '#1f4a2b' })
+      const pin = new Marker({ draggable: true, color: '#1f4a2b' })
         .setLngLat(position)
         .addTo(instance);
+      marker.current = pin;
 
-      marker.current.on('dragend', () => {
-        const lngLat = marker.current!.getLngLat();
+      // Closing over `pin` rather than reading the ref: the ref is cleared on
+      // unmount, and a drag that lands during teardown would otherwise throw.
+      pin.on('dragend', () => {
+        const lngLat = pin.getLngLat();
         changeRef.current({
           latitude: lngLat.lat,
           longitude: lngLat.lng,
@@ -168,7 +178,7 @@ export function LocationStep({ value, onChange }: Props) {
 
     const source = instance.getSource('accuracy');
     if (source && 'setData' in source) {
-      (source as maplibregl.GeoJSONSource).setData({
+      (source as GeoJSONSource).setData({
         type: 'FeatureCollection',
         features: value.accuracyM
           ? [
