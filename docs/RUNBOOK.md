@@ -28,8 +28,12 @@ Railway project, one per environment (`staging` and `production`), each with:
 Railway's stock Postgres template **does not include PostGIS**, and this app
 does not work without it. Deploy the database from the Docker image instead:
 
-1. **New → Empty Service → Deploy from Docker image**: `postgis/postgis:16-3.4`
-2. Variables:
+1. **New → Docker Image**, and enter `postgis/postgis:16-3.4`.
+   Not "Database" (that is the stock template, without PostGIS) and not
+   "Empty Service" (that has no image to run).
+2. Rename the service to `postgis` — Settings → Service Name. The name is not
+   cosmetic: it is how the web service refers to it in step 5.
+3. Variables on the `postgis` service:
    ```
    POSTGRES_USER=trees
    POSTGRES_PASSWORD=<generate a strong one>
@@ -38,11 +42,27 @@ does not work without it. Deploy the database from the Docker image instead:
    ```
    `PGDATA` pointing at a subdirectory matters: the image refuses to initialise
    into a volume root that already contains `lost+found`.
-3. Attach a **volume** mounted at `/var/lib/postgresql/data`. Without it the
+4. Attach a **volume** mounted at `/var/lib/postgresql/data`. Without it the
    database is wiped on every redeploy.
-4. Confirm the extension is available:
+5. On the **web** service, set `DATABASE_URL` by hand:
+
+   ```
+   DATABASE_URL=postgresql://trees:<the same password>@${{postgis.RAILWAY_PRIVATE_DOMAIN}}:5432/trees
+   ```
+
+   **`${{Postgres.DATABASE_URL}}` does not work here.** Railway composes that
+   variable only for databases created from its own template; one deployed from
+   a Docker image exposes no such thing, and referencing it yields an empty
+   value and a container that cannot start. `RAILWAY_PRIVATE_DOMAIN` is
+   provided for every service, and using it keeps the traffic on the private
+   network exactly as the template variable would have.
+
+   The `postgis` in the reference is the service name from step 2. Rename the
+   service and this reference has to change with it.
+
+6. Confirm the extension is there:
    ```sh
-   railway run --service db psql -c "SELECT PostGIS_Version();"
+   railway run --service postgis psql -U trees -d trees -c "SELECT PostGIS_Version();"
    ```
    The first migration runs `CREATE EXTENSION IF NOT EXISTS postgis`, so nothing
    else is needed by hand.
@@ -77,7 +97,7 @@ Set these on the **`web`** service. Copy-paste ready; the four marked **fill in*
 are the only ones that need a value from you.
 
 ```
-DATABASE_URL=${{Postgres.DATABASE_URL}}
+DATABASE_URL=postgresql://trees:<password>@${{postgis.RAILWAY_PRIVATE_DOMAIN}}:5432/trees
 AUTH_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
 AUTH_TRUST_HOST=true
 AUTH_SECRET=<fill in: openssl rand -base64 32>
@@ -117,12 +137,17 @@ Deliberately **not** set:
 
 ### Why these particular forms
 
-**`DATABASE_URL` is a reference variable, never a pasted literal.** Railway
-resolves `${{Postgres.DATABASE_URL}}` to the private-network host
-(`*.railway.internal`), which keeps database traffic off the public internet and
-means rotating the password does not require editing the web service. Paste the
-literal instead and the first password rotation takes the site down, months
-later, with nobody remembering why.
+**`DATABASE_URL` points at the private network, not a public host.**
+`${{postgis.RAILWAY_PRIVATE_DOMAIN}}` resolves to a `*.railway.internal`
+address, so database traffic never leaves Railway's network and the database
+needs no public egress at all.
+
+The password is unavoidably written into this string, because a database
+deployed from a Docker image publishes no composed `DATABASE_URL` to reference
+— that convenience exists only for Railway's own template, which cannot be used
+here because it has no PostGIS. The consequence to remember: rotating
+`POSTGRES_PASSWORD` means editing `DATABASE_URL` on the web service in the same
+change, or the app cannot connect.
 
 **`AUTH_URL` uses Railway's own domain variable.** `${{RAILWAY_PUBLIC_DOMAIN}}`
 tracks the service's real domain, so a preview environment or a domain change
@@ -287,6 +312,32 @@ Set up SMTP when there is more than one person recording trees, give everyone
 their own account, and keep this as the way back in when mail breaks. Rotate it
 when someone who knew it stops needing it, and unset both variables to remove
 the account's ability to sign in entirely.
+
+## 3b. Migration failures
+
+The container refuses to start if migrations fail, and prints instructions for
+the two failures that actually happen. Both are worth recognising:
+
+**`permission denied to create extension "postgis"`** — the database is a stock
+PostgreSQL without PostGIS, and this app cannot work on one. Deploy the database
+from the `postgis/postgis` image (§2.1) and point `DATABASE_URL` at it. On a new
+deployment there is no data to migrate; on an existing one, `pg_dump` first.
+
+**`P3009: migrate found failed migrations`** — an earlier attempt failed and
+left a marker. Prisma then refuses to apply anything, which is a safety feature
+rather than a second problem: the failure it protects you from already happened,
+and its reason is in the log of the deploy that failed, not the current one.
+
+Fix the original cause first, then clear the marker:
+
+```sh
+railway run --service web prisma migrate resolve --rolled-back 20260101000000_init
+```
+
+Prisma runs each migration in a transaction, so a failed one leaves no
+half-created tables behind — clearing the marker and redeploying is enough. Do
+not reach for `--applied`: that tells Prisma the migration succeeded, and the
+schema it describes will be missing forever.
 
 ## 4b. "Sign-in failed (Configuration)"
 
