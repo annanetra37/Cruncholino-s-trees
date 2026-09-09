@@ -7,22 +7,26 @@ import { useT } from '@/i18n/client';
 export function SignInForm({
   emailProviderId,
   devProviderId,
+  operatorProviderId,
   callbackUrl,
   error,
 }: {
   emailProviderId: string | null;
   devProviderId: string | null;
+  operatorProviderId: string | null;
   callbackUrl: string;
   error: string | null;
 }) {
   const t = useT();
   const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState<'link' | 'password' | null>(null);
 
   const hasEmail = emailProviderId !== null;
   const hasDevLogin = devProviderId !== null;
+  const hasPassword = operatorProviderId !== null;
 
-  if (!hasEmail && !hasDevLogin) {
+  if (!hasEmail && !hasDevLogin && !hasPassword) {
     return (
       <p className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
         {t('signin.noMethod')}
@@ -30,42 +34,124 @@ export function SignInForm({
     );
   }
 
+  const message =
+    error === 'Configuration'
+      ? t('signin.errorConfiguration')
+      : error === 'Verification'
+        ? t('signin.errorVerification')
+        : error === 'AccessDenied'
+          ? t('signin.errorAccessDenied')
+          : error === 'CredentialsSignin'
+            ? t('signin.errorCredentials')
+            : error
+              ? t('signin.failed', { error })
+              : null;
+
   return (
-    <form
-      className="mt-6 space-y-4"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setBusy(true);
-        await signIn(hasEmail ? emailProviderId! : devProviderId!, { email, callbackUrl });
-        setBusy(false);
-      }}
-    >
-      {error ? (
-        <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-          {t('signin.failed', { error })}
+    <div className="mt-6 space-y-6">
+      {message ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"
+        >
+          {message}
         </p>
       ) : null}
 
-      <label className="block">
-        <span className="field-label">{t('signin.email')}</span>
-        <input
-          type="email"
-          className="field-input"
-          required
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="you@example.org"
-        />
-      </label>
+      {/* The magic link goes first when both are available: it gives each
+          contributor their own account, which is what makes the "added by"
+          on a tree mean anything. */}
+      {hasEmail || hasDevLogin ? (
+        <form
+          className="space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setBusy('link');
+            await signIn(hasEmail ? emailProviderId! : devProviderId!, { email, callbackUrl });
+            setBusy(null);
+          }}
+        >
+          <label className="block">
+            <span className="field-label">{t('signin.email')}</span>
+            <input
+              type="email"
+              className="field-input"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.org"
+            />
+          </label>
 
-      <button type="submit" className="btn-primary w-full" disabled={busy || !email}>
-        {busy ? t('signin.sending') : hasEmail ? t('signin.sendLink') : t('signin.devButton')}
-      </button>
+          <button type="submit" className="btn-primary w-full" disabled={busy !== null || !email}>
+            {busy === 'link'
+              ? t('signin.sending')
+              : hasEmail
+                ? t('signin.sendLink')
+                : t('signin.devButton')}
+          </button>
 
-      {hasDevLogin ? (
-        <p className="text-xs text-stone-500">{t('signin.devHint')}</p>
+          {hasDevLogin ? <p className="text-xs text-stone-500">{t('signin.devHint')}</p> : null}
+        </form>
       ) : null}
-    </form>
+
+      {hasPassword && (hasEmail || hasDevLogin) ? (
+        <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-stone-400">
+          <span className="h-px flex-1 bg-stone-200" />
+          {t('signin.or')}
+          <span className="h-px flex-1 bg-stone-200" />
+        </div>
+      ) : null}
+
+      {hasPassword ? (
+        <form
+          className="space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setBusy('password');
+            await signIn(operatorProviderId!, { email, password, callbackUrl });
+            setBusy(null);
+          }}
+        >
+          <h2 className="text-sm font-semibold text-stone-700">{t('signin.passwordTitle')}</h2>
+
+          {!hasEmail && !hasDevLogin ? (
+            <label className="block">
+              <span className="field-label">{t('signin.email')}</span>
+              <input
+                type="email"
+                className="field-input"
+                required
+                autoComplete="username"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.org"
+              />
+            </label>
+          ) : null}
+
+          <label className="block">
+            <span className="field-label">{t('signin.password')}</span>
+            <input
+              type="password"
+              className="field-input"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+
+          <button
+            type="submit"
+            className={`${hasEmail || hasDevLogin ? 'btn-secondary' : 'btn-primary'} w-full`}
+            disabled={busy !== null || !email || !password}
+          >
+            {busy === 'password' ? t('signin.sending') : t('signin.passwordButton')}
+          </button>
+        </form>
+      ) : null}
+    </div>
   );
 }
