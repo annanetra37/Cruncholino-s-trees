@@ -6,8 +6,17 @@ import { expect, type Page } from '@playwright/test';
  */
 export async function signIn(page: Page, email = 'contributor@example.org') {
   await page.goto('/signin');
-  await page.getByLabel('Email address').fill(email);
-  await page.getByRole('button', { name: /sign in|email me/i }).click();
+
+  // The page can offer two sign-in methods at once, each with its own email
+  // field, so an unscoped getByLabel('Email address') is ambiguous. Scope to
+  // the magic-link form via its button, which is the one thing unique to it.
+  const button = page.getByRole('button', {
+    name: /Email me a sign-in link|Sign in \(development\)/i,
+  });
+  const form = page.locator('form').filter({ has: button });
+
+  await form.getByLabel('Email address').fill(email);
+  await button.click();
   await page.waitForURL((url) => !url.pathname.startsWith('/signin'), { timeout: 30_000 });
 }
 

@@ -18,7 +18,11 @@ export function SignInForm({
   error: string | null;
 }) {
   const t = useT();
-  const [email, setEmail] = useState('');
+  // Each form owns its fields. They used to share one `email`, which meant the
+  // password button stayed disabled until the *other* form's email box was
+  // filled in — with nothing on screen saying so.
+  const [linkEmail, setLinkEmail] = useState('');
+  const [passwordEmail, setPasswordEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<'link' | 'password' | null>(null);
 
@@ -67,7 +71,10 @@ export function SignInForm({
           onSubmit={async (event) => {
             event.preventDefault();
             setBusy('link');
-            await signIn(hasEmail ? emailProviderId! : devProviderId!, { email, callbackUrl });
+            await signIn(hasEmail ? emailProviderId! : devProviderId!, {
+              email: linkEmail,
+              callbackUrl,
+            });
             setBusy(null);
           }}
         >
@@ -78,13 +85,17 @@ export function SignInForm({
               className="field-input"
               required
               autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={linkEmail}
+              onChange={(event) => setLinkEmail(event.target.value)}
               placeholder="you@example.org"
             />
           </label>
 
-          <button type="submit" className="btn-primary w-full" disabled={busy !== null || !email}>
+          <button
+            type="submit"
+            className="btn-primary w-full"
+            disabled={busy !== null || !linkEmail}
+          >
             {busy === 'link'
               ? t('signin.sending')
               : hasEmail
@@ -110,26 +121,24 @@ export function SignInForm({
           onSubmit={async (event) => {
             event.preventDefault();
             setBusy('password');
-            await signIn(operatorProviderId!, { email, password, callbackUrl });
+            await signIn(operatorProviderId!, { email: passwordEmail, password, callbackUrl });
             setBusy(null);
           }}
         >
           <h2 className="text-sm font-semibold text-stone-700">{t('signin.passwordTitle')}</h2>
 
-          {!hasEmail && !hasDevLogin ? (
-            <label className="block">
-              <span className="field-label">{t('signin.email')}</span>
-              <input
-                type="email"
-                className="field-input"
-                required
-                autoComplete="username"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.org"
-              />
-            </label>
-          ) : null}
+          <label className="block">
+            <span className="field-label">{t('signin.email')}</span>
+            <input
+              type="email"
+              className="field-input"
+              required
+              autoComplete="username"
+              value={passwordEmail}
+              onChange={(event) => setPasswordEmail(event.target.value)}
+              placeholder="you@example.org"
+            />
+          </label>
 
           <label className="block">
             <span className="field-label">{t('signin.password')}</span>
@@ -146,7 +155,7 @@ export function SignInForm({
           <button
             type="submit"
             className={`${hasEmail || hasDevLogin ? 'btn-secondary' : 'btn-primary'} w-full`}
-            disabled={busy !== null || !email || !password}
+            disabled={busy !== null || !passwordEmail || !password}
           >
             {busy === 'password' ? t('signin.sending') : t('signin.passwordButton')}
           </button>

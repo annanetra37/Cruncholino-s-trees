@@ -167,6 +167,14 @@ export const authConfig: NextAuthConfig = {
    */
   logger: {
     error(error) {
+      // A mistyped password is a routine event, not a fault: it arrives here
+      // as CredentialsSignin with a full stack trace that is identical every
+      // time and says nothing. Logged as a warning without the stack, so a
+      // real failure still stands out in the stream.
+      if (error.name === 'CredentialsSignin') {
+        logger.warn('sign-in rejected', { reason: error.name });
+        return;
+      }
       logger.error('auth error', { error, name: error.name, cause: error.cause });
     },
     warn(code) {
