@@ -151,6 +151,33 @@ provider's console and watch the usage; that is the control, not secrecy.
 The full list of variables the app understands, with defaults, is in
 `.env.example`.
 
+## 3a. First run: seed the species list
+
+Migrations create the tables. They do not create data, and the capture form is
+unusable without a species list — an empty dropdown and nothing to submit. Run
+this once against a new deployment:
+
+```sh
+railway run --service web env SEED_TREES=0 pnpm db:seed
+```
+
+`SEED_TREES=0` is the production mode: the 30 species with their Armenian
+names, and nothing else. No demo trees, and deliberately no demo accounts — an
+ADMIN account nobody has ever authenticated as does not belong in a real
+database.
+
+### Then make yourself an admin
+
+The first person to sign in is a CONTRIBUTOR like everyone else; there is no
+bootstrap admin, for the same reason. Sign in through the app first, then:
+
+```sh
+railway run --service web pnpm set-role you@example.org ADMIN
+```
+
+It refuses an email that has never signed in, which is the point: it promotes a
+real account rather than inventing one.
+
 ## 4. Deploying
 
 Pushing to `main` deploys production; opening a PR deploys to the staging

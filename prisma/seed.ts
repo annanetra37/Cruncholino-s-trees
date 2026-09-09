@@ -4,8 +4,24 @@
  * `pnpm db:seed` gives a fresh clone something to look at: ~30 trees across
  * Yerevan and Gyumri, a contributor and an admin. `SEED_TREES=50000 pnpm
  * db:seed` generates the load-test dataset for T10.7 instead.
+ *
+ * `SEED_TREES=0` is the production bootstrap: the species list and nothing
+ * else. Migrations create the tables but no data, and without species the
+ * capture form has nothing to pick — so this has to be run once against a new
+ * deployment. It deliberately creates no demo accounts in that mode: a stray
+ * ADMIN user nobody can sign in as has no business in a real database.
  */
-import { AgeBand, Condition, FruitQuality, GeocodeStatus, LocationSource, PrismaClient, Role, SpeciesCategory, TreeStatus } from '@prisma/client';
+import {
+  AgeBand,
+  Condition,
+  FruitQuality,
+  GeocodeStatus,
+  LocationSource,
+  PrismaClient,
+  Role,
+  SpeciesCategory,
+  TreeStatus,
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -33,7 +49,12 @@ const SPECIES: SpeciesSeed[] = [
   { slug: 'pomegranate', nameEn: 'Pomegranate', nameHy: 'Նուռ', category: SpeciesCategory.FRUIT },
   { slug: 'persimmon', nameEn: 'Persimmon', nameHy: 'Խուրմա', category: SpeciesCategory.FRUIT },
   { slug: 'mulberry', nameEn: 'Mulberry', nameHy: 'Թութ', category: SpeciesCategory.FRUIT },
-  { slug: 'cornelian-cherry', nameEn: 'Cornelian cherry', nameHy: 'Հոն', category: SpeciesCategory.FRUIT },
+  {
+    slug: 'cornelian-cherry',
+    nameEn: 'Cornelian cherry',
+    nameHy: 'Հոն',
+    category: SpeciesCategory.FRUIT,
+  },
   { slug: 'walnut', nameEn: 'Walnut', nameHy: 'Ընկույզ', category: SpeciesCategory.NUT },
   { slug: 'almond', nameEn: 'Almond', nameHy: 'Նուշ', category: SpeciesCategory.NUT },
   { slug: 'hazelnut', nameEn: 'Hazelnut', nameHy: 'Պնդուկ', category: SpeciesCategory.NUT },
@@ -41,7 +62,12 @@ const SPECIES: SpeciesSeed[] = [
   { slug: 'raspberry', nameEn: 'Raspberry', nameHy: 'Ազնվամորի', category: SpeciesCategory.BERRY },
   { slug: 'blackberry', nameEn: 'Blackberry', nameHy: 'Մոշ', category: SpeciesCategory.BERRY },
   { slug: 'currant', nameEn: 'Currant', nameHy: 'Հաղարջ', category: SpeciesCategory.BERRY },
-  { slug: 'sea-buckthorn', nameEn: 'Sea buckthorn', nameHy: 'Չիչխան', category: SpeciesCategory.BERRY },
+  {
+    slug: 'sea-buckthorn',
+    nameEn: 'Sea buckthorn',
+    nameHy: 'Չիչխան',
+    category: SpeciesCategory.BERRY,
+  },
   { slug: 'rosehip', nameEn: 'Rosehip', nameHy: 'Մասուր', category: SpeciesCategory.BERRY },
   { slug: 'oak', nameEn: 'Oak', nameHy: 'Կաղնի', category: SpeciesCategory.ORNAMENTAL },
   { slug: 'plane', nameEn: 'Plane tree', nameHy: 'Սոսի', category: SpeciesCategory.ORNAMENTAL },
@@ -66,7 +92,13 @@ const CITIES = [
 
 const AGE_BANDS = [AgeBand.YOUNG, AgeBand.MID, AgeBand.OLD, AgeBand.UNKNOWN];
 const CONDITIONS = [Condition.GOOD, Condition.GOOD, Condition.FAIR, Condition.POOR, Condition.DEAD];
-const FRUIT = [FruitQuality.GOOD, FruitQuality.FAIR, FruitQuality.POOR, FruitQuality.NONE, FruitQuality.UNKNOWN];
+const FRUIT = [
+  FruitQuality.GOOD,
+  FruitQuality.FAIR,
+  FruitQuality.POOR,
+  FruitQuality.NONE,
+  FruitQuality.UNKNOWN,
+];
 
 /** Deterministic PRNG so re-seeding produces the same map, not a new one. */
 function makeRandom(seed: number) {
@@ -91,6 +123,14 @@ async function main() {
     });
   }
   console.log(`seeded ${SPECIES.length} species`);
+
+  // Production bootstrap: species only, no demo accounts, no demo trees.
+  if (treeCount <= 0) {
+    console.log('SEED_TREES=0 — species only, no demo accounts or trees created.');
+    console.log('Sign in through the app, then grant yourself admin:');
+    console.log('  pnpm exec tsx scripts/set-role.ts you@example.org ADMIN');
+    return;
+  }
 
   const contributor = await prisma.user.upsert({
     where: { email: 'contributor@example.org' },
@@ -153,7 +193,8 @@ async function main() {
   const CHUNK = 1000;
   for (let index = 0; index < rows.length; index += CHUNK) {
     await prisma.tree.createMany({ data: rows.slice(index, index + CHUNK) });
-    if (rows.length > CHUNK) console.log(`  ${Math.min(index + CHUNK, rows.length)}/${rows.length}`);
+    if (rows.length > CHUNK)
+      console.log(`  ${Math.min(index + CHUNK, rows.length)}/${rows.length}`);
   }
 
   console.log(`seeded ${rows.length} trees across ${CITIES.length} cities`);

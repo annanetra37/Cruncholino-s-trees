@@ -29,7 +29,8 @@
     "job:geocode-backfill": "tsx scripts/geocode-backfill.ts",
     "job:orphan-cleanup": "tsx scripts/orphan-cleanup.ts",
     "import:csv": "tsx scripts/import-csv.ts",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "set-role": "tsx scripts/set-role.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.3",
