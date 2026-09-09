@@ -288,6 +288,32 @@ their own account, and keep this as the way back in when mail breaks. Rotate it
 when someone who knew it stops needing it, and unset both variables to remove
 the account's ability to sign in entirely.
 
+## 3b. Migration failures
+
+The container refuses to start if migrations fail, and prints instructions for
+the two failures that actually happen. Both are worth recognising:
+
+**`permission denied to create extension "postgis"`** — the database is a stock
+PostgreSQL without PostGIS, and this app cannot work on one. Deploy the database
+from the `postgis/postgis` image (§2.1) and point `DATABASE_URL` at it. On a new
+deployment there is no data to migrate; on an existing one, `pg_dump` first.
+
+**`P3009: migrate found failed migrations`** — an earlier attempt failed and
+left a marker. Prisma then refuses to apply anything, which is a safety feature
+rather than a second problem: the failure it protects you from already happened,
+and its reason is in the log of the deploy that failed, not the current one.
+
+Fix the original cause first, then clear the marker:
+
+```sh
+railway run --service web prisma migrate resolve --rolled-back 20260101000000_init
+```
+
+Prisma runs each migration in a transaction, so a failed one leaves no
+half-created tables behind — clearing the marker and redeploying is enough. Do
+not reach for `--applied`: that tells Prisma the migration succeeded, and the
+schema it describes will be missing forever.
+
 ## 4b. "Sign-in failed (Configuration)"
 
 This is Auth.js's label for _any_ failure inside a sign-in provider, and it is
