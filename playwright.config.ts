@@ -52,6 +52,11 @@ export default defineConfig({
       // test into a no-op.
       PUBLIC_READ: 'false',
       MODERATION_ENABLED: 'false',
+      // The password account, so the suite covers a sign-in page offering two
+      // methods at once — which is where the two forms used to interfere.
+      OPERATOR_EMAIL: 'operator@example.org',
+      OPERATOR_PASSWORD: 'trees2026',
+      OPERATOR_ROLE: 'ADMIN',
     },
   },
 });
