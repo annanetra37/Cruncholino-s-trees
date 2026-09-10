@@ -6,6 +6,12 @@ test.describe('capture flow', () => {
     await signIn(page);
     await page.goto('/add');
 
+    // Two waits, not one: the first absorbs the dev server compiling this route
+    // on a cold run, the second is the actual thing under test. Rolled into a
+    // single assertion they share one budget, and a slow compile reads as a GPS
+    // failure.
+    await expect(page.getByTestId('location-map')).toBeVisible({ timeout: 60_000 });
+
     // The GPS fix is requested on load; the form should show a position without
     // the contributor doing anything.
     await expect(page.getByText(/40\.1872/)).toBeVisible({ timeout: 20_000 });

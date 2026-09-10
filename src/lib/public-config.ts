@@ -50,7 +50,24 @@ export const builtInMapStyle: StyleSpecification = {
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 };
 
-const styleUrl = process.env.NEXT_PUBLIC_MAP_STYLE_URL?.trim();
+/**
+ * Styles that are not usable basemaps, however well they load.
+ *
+ * MapLibre's demo style is a globe with country outlines and nothing above
+ * about zoom 5. Point a city map at it and every tile request succeeds, no
+ * error is raised, and the map paints a uniform pale fill — indistinguishable
+ * from a broken map, and not something an error handler can catch. It shipped
+ * as this app's own default and in `.env.example`, so it is very likely to be
+ * sitting in a deployment's variables; treat it as unset rather than as a
+ * choice anyone made.
+ */
+const UNUSABLE_STYLES = ['demotiles.maplibre.org'];
+
+const configuredStyle = process.env.NEXT_PUBLIC_MAP_STYLE_URL?.trim();
+const styleUrl =
+  configuredStyle && !UNUSABLE_STYLES.some((host) => configuredStyle.includes(host))
+    ? configuredStyle
+    : undefined;
 const tilesKey = process.env.NEXT_PUBLIC_MAP_TILES_KEY?.trim();
 
 /**

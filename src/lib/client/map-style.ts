@@ -45,3 +45,18 @@ export function resolveMapStyle(): Promise<MapStyle> {
     .catch(() => builtInMapStyle);
   return probe;
 }
+
+/**
+ * Whether a MapLibre error is only about fonts.
+ *
+ * The built-in style pulls glyphs from a font endpoint because a raster style
+ * carries none of its own, and the cluster counts are a symbol layer. If those
+ * fail the counts simply do not draw — the basemap is fine. MapLibre reports it
+ * through the same `error` event as a rejected tile, so without this a missing
+ * font would raise a "the base map could not load" banner over a map that is
+ * rendering perfectly, or trigger a pointless fallback to a style already in
+ * use.
+ */
+export function isGlyphError(message: string): boolean {
+  return /\/font\/|glyph/i.test(message);
+}
