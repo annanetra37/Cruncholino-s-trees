@@ -174,6 +174,29 @@ ships in the JavaScript every visitor downloads. Restrict it by HTTP referrer in
 the tile provider's console and watch the usage; that is the control, not
 secrecy.
 
+### If the map is blank
+
+Delete `NEXT_PUBLIC_MAP_STYLE_URL` and `NEXT_PUBLIC_MAP_TILES_KEY` from the
+service's variables and redeploy. That is the whole fix, and it is worth doing
+before investigating anything else — with both unset there is no map
+configuration left to be wrong.
+
+The app defends against the three ways a configured style fails, in order of how
+hard they are to spot:
+
+| Failure                                 | What you see                         | What the app does                                           |
+| --------------------------------------- | ------------------------------------ | ----------------------------------------------------------- |
+| Style URL is unreachable or 403s        | Nothing, before the map builds       | Probes it once on first load and uses OpenStreetMap instead |
+| Style loads, its **tiles** are rejected | A blank map and no error             | Catches the first tile error and switches to OpenStreetMap  |
+| Style is MapLibre's **demo** style      | A uniform pale fill, no error at all | Treats it as unset — see below                              |
+
+That last one is the nasty one, and it is the likeliest thing to be sitting in an
+older deployment's variables because this app's own `.env.example` used to ship
+it. `https://demotiles.maplibre.org/style.json` is a globe with country outlines
+and no detail above about zoom 5. Point a city map at it and every tile request
+succeeds, nothing errors, and you get a plain background that looks exactly like
+a broken map. No error handler can catch that, so the value is ignored outright.
+
 This is exactly why the basemap does not need a key by default. A build-time
 variable that is wrong cannot be corrected by editing it in Railway — it takes a
 rebuild — and until then MapLibre draws an empty background with no error a

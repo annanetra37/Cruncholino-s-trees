@@ -21,6 +21,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('glyph errors', () => {
+  it('are not treated as basemap failures', async () => {
+    const { isGlyphError } = await load();
+
+    // What MapLibre actually reports when a font endpoint is unreachable.
+    expect(
+      isGlyphError(
+        'AJAXError: Not Found (404): https://demotiles.maplibre.org/font/Noto%20Sans%20Regular/0-255.pbf',
+      ),
+    ).toBe(true);
+    expect(isGlyphError('Failed to load glyph range')).toBe(true);
+  });
+
+  it('do not swallow a real tile failure', async () => {
+    const { isGlyphError } = await load();
+    expect(isGlyphError('AJAXError: Forbidden (403): https://tile.example/12/2554/1547.png')).toBe(
+      false,
+    );
+  });
+});
+
 describe('map style resolution', () => {
   it('uses the built-in style with no probe when nothing is configured', async () => {
     const fetchSpy = vi.fn();
@@ -57,6 +78,20 @@ describe('map style resolution', () => {
 
     const resolved = await resolveMapStyle();
     expect(typeof resolved).toBe('object');
+  });
+
+  it('treats the MapLibre demo style as unset', async () => {
+    // It loads perfectly and renders nothing recognisable above zoom 5, so no
+    // error handler can catch it — it has to be rejected up front.
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const { initialMapStyle, resolveMapStyle } = await load(
+      'https://demotiles.maplibre.org/style.json',
+    );
+
+    expect(initialMapStyle()).not.toBeNull();
+    await expect(resolveMapStyle()).resolves.toEqual(expect.objectContaining({ version: 8 }));
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('probes only once however many maps ask', async () => {

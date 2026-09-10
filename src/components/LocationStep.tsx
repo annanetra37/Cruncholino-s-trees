@@ -18,10 +18,17 @@ import {
   NavigationControl,
   type GeoJSONSource,
   type MapMouseEvent,
+  type ErrorEvent,
+  type GeoJSONSourceSpecification,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { publicConfig } from '@/lib/public-config';
-import { initialMapStyle, resolveMapStyle, type MapStyle } from '@/lib/client/map-style';
+import { builtInMapStyle, publicConfig } from '@/lib/public-config';
+import {
+  initialMapStyle,
+  isGlyphError,
+  resolveMapStyle,
+  type MapStyle,
+} from '@/lib/client/map-style';
 import { useT } from '@/i18n/client';
 
 /** Close enough to identify which tree is meant; stop refining here. */
@@ -52,6 +59,23 @@ type Props = {
   onChange: (location: PickedLocation) => void;
 };
 
+/** The accuracy circle's data for a reading, or nothing when there is none. */
+function accuracyData(
+  reading: { latitude: number; longitude: number; accuracyM: number | null } | null | undefined,
+): Exclude<GeoJSONSourceSpecification['data'], string> {
+  if (!reading?.accuracyM) return { type: 'FeatureCollection', features: [] };
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [reading.longitude, reading.latitude] },
+        properties: { accuracy: reading.accuracyM },
+      },
+    ],
+  };
+}
+
 export function LocationStep({ value, onChange }: Props) {
   const t = useT();
   const container = useRef<HTMLDivElement>(null);
@@ -62,6 +86,11 @@ export function LocationStep({ value, onChange }: Props) {
   const [style, setStyle] = useState<MapStyle | null>(initialMapStyle);
   const [address, setAddress] = useState<string | null>(null);
   const [addressState, setAddressState] = useState<'idle' | 'looking' | 'found' | 'none'>('idle');
+  const [mapError, setMapError] = useState<string | null>(null);
+  // One fallback only: if the built-in style fails too, the error is real.
+  const usingFallback = useRef(false);
+  const latestValue = useRef(value);
+  latestValue.current = value;
   // The best accuracy seen so far, in metres. Fixes arrive coarse and improve;
   // keeping the best one stops a later, worse reading from undoing a good one.
   const bestAccuracy = useRef(Number.POSITIVE_INFINITY);
@@ -182,10 +211,29 @@ export function LocationStep({ value, onChange }: Props) {
 
     instance.addControl(new NavigationControl({ showCompass: false }), 'top-right');
 
-    instance.on('load', () => {
+    instance.on('error', (event: ErrorEvent) => {
+      // This map had no error handling at all, so a basemap that failed to
+      // paint looked like a bug in the form rather than a map that could not
+      // load. A provider style whose *tiles* are rejected is the case the
+      // pre-flight probe cannot see: style.json returns 200, the map loads,
+      // and then every tile 403s.
+      const message = event.error?.message ?? 'Map failed to load';
+      if (isGlyphError(message)) return;
+
+      if (typeof style === 'string' && !usingFallback.current) {
+        usingFallback.current = true;
+        instance.setStyle(builtInMapStyle);
+        return;
+      }
+      setMapError((current) => current ?? message);
+    });
+
+    // `style.load` rather than `load`: it fires for the initial style *and*
+    // again after `setStyle`, so the fallback above comes back with its layer.
+    instance.on('style.load', () => {
       instance.addSource('accuracy', {
         type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
+        data: accuracyData(latestValue.current),
       });
       // The accuracy circle is the honest part of a GPS reading: a 40 m fix
       // shown as a precise dot invites a contributor to trust it.
@@ -262,18 +310,7 @@ export function LocationStep({ value, onChange }: Props) {
 
     const source = instance.getSource('accuracy');
     if (source && 'setData' in source) {
-      (source as GeoJSONSource).setData({
-        type: 'FeatureCollection',
-        features: value.accuracyM
-          ? [
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: position },
-                properties: { accuracy: value.accuracyM },
-              },
-            ]
-          : [],
-      });
+      (source as GeoJSONSource).setData(accuracyData(value));
     }
   }, [value]);
 
@@ -383,6 +420,15 @@ export function LocationStep({ value, onChange }: Props) {
           }`}
         >
           {t(messageKey)}
+        </p>
+      ) : null}
+
+      {mapError ? (
+        <p
+          className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+          data-testid="location-map-error"
+        >
+          {t('map.styleFailed', { error: mapError })}
         </p>
       ) : null}
 

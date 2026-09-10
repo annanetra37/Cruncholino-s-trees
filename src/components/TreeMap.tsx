@@ -21,7 +21,13 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
-import { initialMapStyle, resolveMapStyle, type MapStyle } from '@/lib/client/map-style';
+import {
+  initialMapStyle,
+  isGlyphError,
+  resolveMapStyle,
+  type MapStyle,
+} from '@/lib/client/map-style';
+import { builtInMapStyle } from '@/lib/public-config';
 import { markerIconExpression, registerMarkerImages } from '@/lib/client/markers';
 import type { TreeFeatureCollection } from '@/lib/client/types';
 import { useT } from '@/i18n/client';
@@ -31,12 +37,25 @@ const MARKER_LAYER = 'tree-markers';
 const CLUSTER_LAYER = 'tree-clusters';
 const CLUSTER_COUNT_LAYER = 'tree-cluster-counts';
 
-const EMPTY: TreeFeatureCollection = {
-  type: 'FeatureCollection',
-  clustered: false,
-  total: 0,
-  features: [],
-};
+const SELECTED_LAYER = 'tree-selected';
+
+function applySelection(instance: MapLibreMap, selectedId: string | null | undefined) {
+  if (instance.getLayer(SELECTED_LAYER)) instance.removeLayer(SELECTED_LAYER);
+  if (!selectedId || !instance.getSource(SOURCE_ID)) return;
+
+  instance.addLayer({
+    id: SELECTED_LAYER,
+    type: 'circle',
+    source: SOURCE_ID,
+    filter: ['==', ['get', 'id'], selectedId],
+    paint: {
+      'circle-radius': 18,
+      'circle-color': 'transparent',
+      'circle-stroke-color': '#1f4a2b',
+      'circle-stroke-width': 3,
+    },
+  });
+}
 
 export type Bbox = { minLng: number; minLat: number; maxLng: number; maxLat: number; zoom: number };
 
@@ -59,6 +78,12 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
   const [style, setStyle] = useState<MapStyle | null>(initialMapStyle);
 
   // Kept in a ref so the map's event handlers never close over a stale prop.
+  const latestData = useRef(data);
+  latestData.current = data;
+  // One fallback only: if the built-in style fails too, the error is real.
+  const usingFallback = useRef(false);
+  const latestSelection = useRef(selectedId);
+  latestSelection.current = selectedId;
   const viewportCallback = useRef(onViewportChange);
   viewportCallback.current = onViewportChange;
   const selectCallback = useRef(onSelect);
@@ -109,18 +134,29 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
 
     instance.on('error', (event: ErrorEvent) => {
       // MapLibre reports load failures here and nowhere else — it draws an
-      // empty background and carries on. This used to surface only errors whose
-      // text contained "style", so a rejected *tile* request (the usual symptom
-      // of a key that is wrong, expired, or restricted to another domain) was
-      // swallowed and the map just looked blank.
+      // empty background and carries on, which is why a broken basemap looks
+      // like a broken app rather than an error.
       const message = event.error?.message ?? 'Map failed to load';
+      if (isGlyphError(message)) return;
+
+      // A provider style whose *tiles* are rejected is the case the pre-flight
+      // probe cannot see: style.json returns 200, the map loads, and then every
+      // tile 403s. Falling back here catches that, and any later outage too.
+      if (typeof style === 'string' && !usingFallback.current) {
+        usingFallback.current = true;
+        instance.setStyle(builtInMapStyle);
+        return;
+      }
+
       setStyleError((current) => current ?? message);
     });
 
-    instance.on('load', () => {
+    // `style.load` rather than `load`: it fires for the initial style *and*
+    // again after `setStyle`, so the fallback above comes back with its layers.
+    instance.on('style.load', () => {
       registerMarkerImages(instance);
 
-      instance.addSource(SOURCE_ID, { type: 'geojson', data: EMPTY });
+      instance.addSource(SOURCE_ID, { type: 'geojson', data: latestData.current as never });
 
       instance.addLayer({
         id: CLUSTER_LAYER,
@@ -174,29 +210,33 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
         },
       });
 
-      const pointer = (value: string) => () => {
-        instance.getCanvas().style.cursor = value;
-      };
-      instance.on('mouseenter', MARKER_LAYER, pointer('pointer'));
-      instance.on('mouseleave', MARKER_LAYER, pointer(''));
-      instance.on('mouseenter', CLUSTER_LAYER, pointer('zoom-in'));
-      instance.on('mouseleave', CLUSTER_LAYER, pointer(''));
-
-      instance.on('click', MARKER_LAYER, (event: MapLayerMouseEvent) => {
-        const id = event.features?.[0]?.properties?.id;
-        if (typeof id === 'string') selectCallback.current(id);
-      });
-
-      // T5.3 — clicking a cluster zooms into it.
-      instance.on('click', CLUSTER_LAYER, (event: MapLayerMouseEvent) => {
-        const feature = event.features?.[0];
-        if (!feature || feature.geometry.type !== 'Point') return;
-        const [longitude, latitude] = feature.geometry.coordinates as [number, number];
-        instance.easeTo({ center: [longitude, latitude], zoom: instance.getZoom() + 2.5 });
-      });
+      applySelection(instance, latestSelection.current);
 
       setReady(true);
       emitViewport();
+    });
+
+    // Registered once, outside `style.load`: layer-scoped handlers survive a
+    // restyle, and re-registering them would fire each one twice per click.
+    const pointer = (value: string) => () => {
+      instance.getCanvas().style.cursor = value;
+    };
+    instance.on('mouseenter', MARKER_LAYER, pointer('pointer'));
+    instance.on('mouseleave', MARKER_LAYER, pointer(''));
+    instance.on('mouseenter', CLUSTER_LAYER, pointer('zoom-in'));
+    instance.on('mouseleave', CLUSTER_LAYER, pointer(''));
+
+    instance.on('click', MARKER_LAYER, (event: MapLayerMouseEvent) => {
+      const id = event.features?.[0]?.properties?.id;
+      if (typeof id === 'string') selectCallback.current(id);
+    });
+
+    // T5.3 — clicking a cluster zooms into it.
+    instance.on('click', CLUSTER_LAYER, (event: MapLayerMouseEvent) => {
+      const feature = event.features?.[0];
+      if (!feature || feature.geometry.type !== 'Point') return;
+      const [longitude, latitude] = feature.geometry.coordinates as [number, number];
+      instance.easeTo({ center: [longitude, latitude], zoom: instance.getZoom() + 2.5 });
     });
 
     // Debounced: dragging the map fires moveend once, but a pinch-zoom on a
@@ -233,24 +273,7 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
   // A ring around the selected marker, so the map and the detail panel agree.
   useEffect(() => {
     if (!ready || !map.current) return;
-    const instance = map.current;
-    const layerId = 'tree-selected';
-
-    if (instance.getLayer(layerId)) instance.removeLayer(layerId);
-    if (!selectedId) return;
-
-    instance.addLayer({
-      id: layerId,
-      type: 'circle',
-      source: SOURCE_ID,
-      filter: ['==', ['get', 'id'], selectedId],
-      paint: {
-        'circle-radius': 18,
-        'circle-color': 'transparent',
-        'circle-stroke-color': '#1f4a2b',
-        'circle-stroke-width': 3,
-      },
-    });
+    applySelection(map.current, selectedId);
   }, [selectedId, ready]);
 
   return (
