@@ -104,6 +104,9 @@ export const en = {
   'location.failed': 'Could not get a GPS fix. Drag the pin to where the tree is.',
   'location.unsupported':
     'This browser cannot report your location. Drop a pin on the map instead.',
+  'location.improving': 'improving…',
+  'location.accuracyPoor':
+    'This position is only accurate to about {accuracy}, which means it came from your network rather than from GPS. Drag the pin onto the tree — or open this page on a phone, outdoors, where GPS gets within a few metres.',
   'location.hint': 'Tap the map or drag the pin to correct the position.',
 
   'species.label': 'Species',
@@ -291,6 +294,8 @@ export const en = {
   'speciesAdmin.no': 'No',
   'speciesAdmin.failed': 'Something went wrong',
 
+  'map.keyRejected':
+    'The map provider rejected the request for tiles ({error}). The tile key is usually wrong, out of quota, or restricted to a different domain — check NEXT_PUBLIC_MAP_TILES_KEY and the allowed origins in the provider\u2019s console.',
   'map.styleFailed':
     'The base map failed to load ({error}). Check NEXT_PUBLIC_MAP_STYLE_URL and the tile key.',
 } as const;

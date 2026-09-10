@@ -94,10 +94,13 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
     instance.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     instance.on('error', (event: ErrorEvent) => {
-      // A missing tile key is the single most common map failure and it is
-      // silent by default; surface it rather than showing an empty grey box.
+      // MapLibre reports load failures here and nowhere else — it draws an
+      // empty background and carries on. This used to surface only errors whose
+      // text contained "style", so a rejected *tile* request (the usual symptom
+      // of a key that is wrong, expired, or restricted to another domain) was
+      // swallowed and the map just looked blank.
       const message = event.error?.message ?? 'Map failed to load';
-      if (message.toLowerCase().includes('style')) setStyleError(message);
+      setStyleError((current) => current ?? message);
     });
 
     instance.on('load', () => {
@@ -240,8 +243,10 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
     <div className="relative h-full w-full">
       <div ref={container} className="h-full w-full" data-testid="tree-map" />
       {styleError ? (
-        <div className="absolute inset-x-4 top-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          {t('map.styleFailed', { error: styleError })}
+        <div className="absolute inset-x-4 top-4 z-10 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          {/^(401|403)|forbidden|unauthor|key/i.test(styleError)
+            ? t('map.keyRejected', { error: styleError })
+            : t('map.styleFailed', { error: styleError })}
         </div>
       ) : null}
     </div>

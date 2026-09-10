@@ -23,6 +23,22 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
 import { useT } from '@/i18n/client';
 
+/** Close enough to identify which tree is meant; stop refining here. */
+const GOOD_ACCURACY_M = 20;
+
+/** Beyond this a reading is a network estimate, not a position on a street. */
+const POOR_ACCURACY_M = 150;
+
+/** How long to keep refining before settling for what the device can manage. */
+const WATCH_FOR_MS = 20_000;
+
+/** 12 m, 400 m, 50 km — rather than 50000 m, which reads as precision. */
+function formatAccuracy(metres: number): string {
+  if (metres >= 1000) return `${Math.round(metres / 1000)} km`;
+  if (metres >= 100) return `${Math.round(metres / 50) * 50} m`;
+  return `${Math.round(metres)} m`;
+}
+
 export type PickedLocation = {
   latitude: number;
   longitude: number;
@@ -41,6 +57,12 @@ export function LocationStep({ value, onChange }: Props) {
   const map = useRef<MapLibreMap | null>(null);
   const marker = useRef<Marker | null>(null);
   const [status, setStatus] = useState<'idle' | 'locating' | 'denied' | 'error'>('idle');
+  // The best accuracy seen so far, in metres. Fixes arrive coarse and improve;
+  // keeping the best one stops a later, worse reading from undoing a good one.
+  const bestAccuracy = useRef(Number.POSITIVE_INFINITY);
+  const watchId = useRef<number | null>(null);
+  const watchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // The message is stored as a key, not a string, so switching language
   // re-renders it rather than leaving the previous language's text on screen.
   const [messageKey, setMessageKey] = useState<
@@ -50,6 +72,29 @@ export function LocationStep({ value, onChange }: Props) {
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
 
+  const stopWatching = useCallback(() => {
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    if (watchTimeout.current) {
+      clearTimeout(watchTimeout.current);
+      watchTimeout.current = null;
+    }
+  }, []);
+
+  /**
+   * Asks the device to keep reporting until the fix stops improving.
+   *
+   * A single `getCurrentPosition` returns whichever fix is ready first, and the
+   * first fix is usually the worst one the device can produce — on a laptop
+   * with no GPS radio that is an IP lookup, accurate to tens of kilometres.
+   * Watching lets the reading tighten as the GPS or Wi-Fi scan resolves, which
+   * is what a delivery or taxi app is doing while its pin visibly settles.
+   *
+   * `maximumAge: 0` refuses a cached position: a stale coarse fix from another
+   * site would otherwise be handed over instantly and never improved on.
+   */
   const requestGps = useCallback(() => {
     if (!('geolocation' in navigator)) {
       setStatus('error');
@@ -57,33 +102,56 @@ export function LocationStep({ value, onChange }: Props) {
       return;
     }
 
+    stopWatching();
+    bestAccuracy.current = Number.POSITIVE_INFINITY;
     setStatus('locating');
     setMessageKey(null);
 
-    navigator.geolocation.getCurrentPosition(
+    watchId.current = navigator.geolocation.watchPosition(
       (position) => {
-        setStatus('idle');
+        const accuracy = position.coords.accuracy ?? Number.POSITIVE_INFINITY;
+
+        // Only accept a reading that beats the best so far.
+        if (accuracy > bestAccuracy.current) return;
+        bestAccuracy.current = accuracy;
         changeRef.current({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-          accuracyM: position.coords.accuracy ?? null,
+          accuracyM: Number.isFinite(accuracy) ? accuracy : null,
           source: 'GPS',
         });
+
+        // Good enough to stand next to a tree with: stop, rather than holding
+        // the radio open and draining the phone that is being carried around an
+        // orchard.
+        if (accuracy <= GOOD_ACCURACY_M) {
+          stopWatching();
+          setStatus('idle');
+        }
       },
       (error) => {
+        stopWatching();
         const denied = error.code === error.PERMISSION_DENIED;
         setStatus(denied ? 'denied' : 'error');
         setMessageKey(denied ? 'location.denied' : 'location.failed');
       },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
     );
-  }, []);
 
-  // Ask once on mount: standing in front of the tree is the common case, and
-  // making the contributor tap a button first wastes the fix they already have.
+    // Stop refining eventually whatever happens: a device that cannot do better
+    // will keep reporting the same coarse fix indefinitely.
+    watchTimeout.current = setTimeout(() => {
+      stopWatching();
+      setStatus('idle');
+    }, WATCH_FOR_MS);
+  }, [stopWatching]);
+
+  // Ask on mount: standing in front of the tree is the common case, and making
+  // the contributor tap a button first wastes the fix they already have.
   useEffect(() => {
     requestGps();
-  }, [requestGps]);
+    return stopWatching;
+  }, [requestGps, stopWatching]);
 
   useEffect(() => {
     if (!container.current || map.current) return;
@@ -200,14 +268,27 @@ export function LocationStep({ value, onChange }: Props) {
           {status === 'locating' ? t('location.finding') : `📍 ${t('location.useMine')}`}
         </button>
         {value ? (
-          <p className="text-sm text-stone-600">
+          <p className="flex flex-wrap items-center gap-x-2 text-sm text-stone-600">
             <span className="font-mono">
               {value.latitude.toFixed(5)}, {value.longitude.toFixed(5)}
             </span>
             {value.accuracyM ? (
-              <span className="ml-2 text-stone-500">±{Math.round(value.accuracyM)} m</span>
+              <span
+                className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                  value.accuracyM <= GOOD_ACCURACY_M
+                    ? 'bg-emerald-100 text-emerald-900'
+                    : value.accuracyM <= POOR_ACCURACY_M
+                      ? 'bg-stone-100 text-stone-600'
+                      : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                ±{formatAccuracy(value.accuracyM)}
+              </span>
             ) : null}
-            <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs uppercase text-stone-500">
+            {status === 'locating' ? (
+              <span className="text-xs text-stone-500">{t('location.improving')}</span>
+            ) : null}
+            <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs uppercase text-stone-500">
               {value.source}
             </span>
           </p>
@@ -215,6 +296,12 @@ export function LocationStep({ value, onChange }: Props) {
           <p className="text-sm text-stone-500">{t('location.none')}</p>
         )}
       </div>
+
+      {value?.accuracyM && value.accuracyM > POOR_ACCURACY_M && status !== 'locating' ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          {t('location.accuracyPoor', { accuracy: formatAccuracy(value.accuracyM) })}
+        </p>
+      ) : null}
 
       {messageKey ? (
         <p
