@@ -21,6 +21,7 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
+import { initialMapStyle, resolveMapStyle, type MapStyle } from '@/lib/client/map-style';
 import { markerIconExpression, registerMarkerImages } from '@/lib/client/markers';
 import type { TreeFeatureCollection } from '@/lib/client/types';
 import { useT } from '@/i18n/client';
@@ -54,6 +55,8 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
   const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
   const [styleError, setStyleError] = useState<string | null>(null);
+  // `null` while a configured provider style is being probed; see map-style.ts.
+  const [style, setStyle] = useState<MapStyle | null>(initialMapStyle);
 
   // Kept in a ref so the map's event handlers never close over a stale prop.
   const viewportCallback = useRef(onViewportChange);
@@ -75,11 +78,22 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
   }, []);
 
   useEffect(() => {
-    if (!container.current || map.current) return;
+    if (style) return;
+    let live = true;
+    void resolveMapStyle().then((resolved) => {
+      if (live) setStyle(resolved);
+    });
+    return () => {
+      live = false;
+    };
+  }, [style]);
+
+  useEffect(() => {
+    if (!container.current || map.current || !style) return;
 
     const instance = new MapLibreMap({
       container: container.current,
-      style: publicConfig.mapStyleUrl,
+      style,
       center: publicConfig.mapDefaultCenter,
       zoom: publicConfig.mapDefaultZoom,
       attributionControl: { compact: true },
@@ -199,7 +213,7 @@ export function TreeMap({ data, onViewportChange, onSelect, selectedId, flyTo }:
       instance.remove();
       map.current = null;
     };
-  }, [emitViewport]);
+  }, [emitViewport, style]);
 
   useEffect(() => {
     if (!ready || !map.current) return;

@@ -108,6 +108,9 @@ export const en = {
   'location.accuracyPoor':
     'This position is only accurate to about {accuracy}, which means it came from your network rather than from GPS. Drag the pin onto the tree — or open this page on a phone, outdoors, where GPS gets within a few metres.',
   'location.hint': 'Tap the map or drag the pin to correct the position.',
+  'location.addressLooking': 'Looking up the address…',
+  'location.addressUnknown':
+    'No address found for this spot. The tree still saves — the coordinates are what matter.',
 
   'species.label': 'Species',
   'species.searchPlaceholder': 'Search — apricot, ծիրան…',
@@ -297,7 +300,7 @@ export const en = {
   'map.keyRejected':
     'The map provider rejected the request for tiles ({error}). The tile key is usually wrong, out of quota, or restricted to a different domain — check NEXT_PUBLIC_MAP_TILES_KEY and the allowed origins in the provider\u2019s console.',
   'map.styleFailed':
-    'The base map failed to load ({error}). Check NEXT_PUBLIC_MAP_STYLE_URL and the tile key.',
+    'The base map could not load ({error}). The tiles come from openstreetmap.org, so this is usually a network or connectivity problem rather than a setting. Everything else on this page still works.',
 } as const;
 
 export type MessageKey = keyof typeof en;

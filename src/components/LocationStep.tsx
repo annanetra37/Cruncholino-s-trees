@@ -21,6 +21,7 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { publicConfig } from '@/lib/public-config';
+import { initialMapStyle, resolveMapStyle, type MapStyle } from '@/lib/client/map-style';
 import { useT } from '@/i18n/client';
 
 /** Close enough to identify which tree is meant; stop refining here. */
@@ -57,6 +58,10 @@ export function LocationStep({ value, onChange }: Props) {
   const map = useRef<MapLibreMap | null>(null);
   const marker = useRef<Marker | null>(null);
   const [status, setStatus] = useState<'idle' | 'locating' | 'denied' | 'error'>('idle');
+  // `null` while a configured provider style is being probed; see map-style.ts.
+  const [style, setStyle] = useState<MapStyle | null>(initialMapStyle);
+  const [address, setAddress] = useState<string | null>(null);
+  const [addressState, setAddressState] = useState<'idle' | 'looking' | 'found' | 'none'>('idle');
   // The best accuracy seen so far, in metres. Fixes arrive coarse and improve;
   // keeping the best one stops a later, worse reading from undoing a good one.
   const bestAccuracy = useRef(Number.POSITIVE_INFINITY);
@@ -154,11 +159,22 @@ export function LocationStep({ value, onChange }: Props) {
   }, [requestGps, stopWatching]);
 
   useEffect(() => {
-    if (!container.current || map.current) return;
+    if (style) return;
+    let live = true;
+    void resolveMapStyle().then((resolved) => {
+      if (live) setStyle(resolved);
+    });
+    return () => {
+      live = false;
+    };
+  }, [style]);
+
+  useEffect(() => {
+    if (!container.current || map.current || !style) return;
 
     const instance = new MapLibreMap({
       container: container.current,
-      style: publicConfig.mapStyleUrl,
+      style,
       center: value ? [value.longitude, value.latitude] : publicConfig.mapDefaultCenter,
       zoom: value ? 17 : publicConfig.mapDefaultZoom,
     });
@@ -211,9 +227,9 @@ export function LocationStep({ value, onChange }: Props) {
       map.current = null;
       marker.current = null;
     };
-    // Deliberately mount-only: `value` is applied by the effect below.
+    // Otherwise mount-only: `value` is applied by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [style]);
 
   useEffect(() => {
     const instance = map.current;
@@ -261,6 +277,44 @@ export function LocationStep({ value, onChange }: Props) {
     }
   }, [value]);
 
+  // Show the address the save will record, while the contributor can still
+  // correct the pin. Debounced because dragging fires a change per frame, and
+  // keyed on coordinates rounded to the geocode cache's precision so that a
+  // refined accuracy reading at the same spot does not spend another lookup.
+  const lat = value ? Number(value.latitude.toFixed(5)) : null;
+  const lng = value ? Number(value.longitude.toFixed(5)) : null;
+
+  useEffect(() => {
+    if (lat === null || lng === null) {
+      setAddress(null);
+      setAddressState('idle');
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setAddressState('looking');
+      fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`, { signal: controller.signal })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body: { address?: { addressLine: string | null } | null } | null) => {
+          const line = body?.address?.addressLine ?? null;
+          setAddress(line);
+          setAddressState(line ? 'found' : 'none');
+        })
+        .catch(() => {
+          // An aborted request is the common case here — the pin moved again.
+          if (controller.signal.aborted) return;
+          setAddress(null);
+          setAddressState('none');
+        });
+    }, 700);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [lat, lng]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -296,6 +350,23 @@ export function LocationStep({ value, onChange }: Props) {
           <p className="text-sm text-stone-500">{t('location.none')}</p>
         )}
       </div>
+
+      {addressState === 'idle' ? null : (
+        <p
+          className={
+            addressState === 'found'
+              ? 'text-sm font-medium text-stone-800'
+              : 'text-sm text-stone-500'
+          }
+          data-testid="location-address"
+        >
+          {addressState === 'found'
+            ? `\u{1F4CD} ${address}`
+            : addressState === 'looking'
+              ? t('location.addressLooking')
+              : t('location.addressUnknown')}
+        </p>
+      )}
 
       {value?.accuracyM && value.accuracyM > POOR_ACCURACY_M && status !== 'locating' ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
