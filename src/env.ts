@@ -79,7 +79,9 @@ const envSchema = z.object({
   GEOCODING_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(1100),
 
   // --- Map ----------------------------------------------------------------
-  NEXT_PUBLIC_MAP_STYLE_URL: z.string().default('https://demotiles.maplibre.org/style.json'),
+  // Unset by default: the basemap is OpenStreetMap unless a provider style is
+  // deliberately configured. See src/lib/client/map-style.ts.
+  NEXT_PUBLIC_MAP_STYLE_URL: z.string().optional(),
   NEXT_PUBLIC_MAP_TILES_KEY: z.string().optional(),
   NEXT_PUBLIC_MAP_DEFAULT_CENTER: z.string().default('44.5152,40.1872'),
   NEXT_PUBLIC_MAP_DEFAULT_ZOOM: z.coerce.number().default(11),

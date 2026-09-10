@@ -110,8 +110,8 @@ GEOCODING_USER_AGENT=cruncholino-trees/0.1 (+https://<your domain>)
 GEOCODING_TIMEOUT_MS=3000
 GEOCODING_MIN_INTERVAL_MS=1100
 
-NEXT_PUBLIC_MAP_STYLE_URL=https://api.maptiler.com/maps/streets-v2/style.json
-NEXT_PUBLIC_MAP_TILES_KEY=<fill in: free MapTiler key>
+# No map key needed: leave NEXT_PUBLIC_MAP_STYLE_URL and
+# NEXT_PUBLIC_MAP_TILES_KEY unset and the basemap uses OpenStreetMap.
 NEXT_PUBLIC_MAP_DEFAULT_CENTER=44.5152,40.1872
 NEXT_PUBLIC_MAP_DEFAULT_ZOOM=11
 
@@ -169,9 +169,17 @@ it.
 inlined into the browser bundle by `next build`, which is why the Dockerfile
 declares them as build args. Two consequences: changing one needs a rebuild
 rather than a restart (a Railway redeploy does rebuild, so this is automatic),
-and `NEXT_PUBLIC_MAP_TILES_KEY` is **public by design** — it ships in the
-JavaScript every visitor downloads. Restrict it by HTTP referrer in the tile
-provider's console and watch the usage; that is the control, not secrecy.
+and `NEXT_PUBLIC_MAP_TILES_KEY`, _if you set one_, is **public by design** — it
+ships in the JavaScript every visitor downloads. Restrict it by HTTP referrer in
+the tile provider's console and watch the usage; that is the control, not
+secrecy.
+
+This is exactly why the basemap does not need a key by default. A build-time
+variable that is wrong cannot be corrected by editing it in Railway — it takes a
+rebuild — and until then MapLibre draws an empty background with no error a
+contributor can act on. Leave both map variables unset and the app uses
+OpenStreetMap's tiles directly; set a style URL that fails to load and the app
+probes it once on first load and falls back to OpenStreetMap anyway.
 
 The full list of variables the app understands, with defaults, is in
 `.env.example`.
