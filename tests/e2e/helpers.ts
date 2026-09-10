@@ -26,7 +26,15 @@ export async function signIn(page: Page, email = 'contributor@example.org') {
  * assuming one of the two layouts.
  */
 export async function openFilters(page: Page) {
-  const toggle = page.getByRole('button', { name: 'Filters' });
+  // `exact`, because accessible names match as substrings by default and the
+  // panel's own "Close filters" button would otherwise match this too.
+  const toggle = page.getByRole('button', { name: 'Filters', exact: true });
+  // `isVisible` checks once and does not wait, so on a page that is still
+  // rendering it reports false, the click is skipped, and the failure surfaces
+  // later as a missing panel. Wait for the button to exist first; it is in the
+  // DOM in both layouts and only *visible* in the phone one, which is exactly
+  // the distinction being made here.
+  await toggle.waitFor({ state: 'attached' });
   if (await toggle.isVisible()) await toggle.click();
   await expect(page.getByRole('heading', { name: 'Filters' })).toBeVisible();
 }

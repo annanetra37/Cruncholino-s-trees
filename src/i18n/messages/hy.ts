@@ -185,6 +185,8 @@ export const hy: Messages = {
   'filters.anyCity': 'Ցանկացած քաղաք',
   'filters.anyRegion': 'Ցանկացած մարզ',
   'filters.showResults': 'Ցույց տալ {count} արդյունք',
+  'filters.showResultsPending': 'Տեսնել արդյունքները',
+  'filters.close': 'Փակել զտիչները',
   'filters.resetWithCount': 'Մաքրել ({count})',
 
   'legend.title': 'Պայմանանշաններ',

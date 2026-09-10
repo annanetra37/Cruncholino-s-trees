@@ -106,7 +106,15 @@ export function DashboardView({
   const onFiltersChange = useCallback(
     (next: Filters) => {
       setParams((params) => {
-        for (const key of ['species', 'age_band', 'condition', 'fruit_quality', 'city', 'region', 'q']) {
+        for (const key of [
+          'species',
+          'age_band',
+          'condition',
+          'fruit_quality',
+          'city',
+          'region',
+          'q',
+        ]) {
           params.delete(key);
         }
         for (const [key, value] of filtersToQuery(next)) params.set(key, value);
@@ -222,21 +230,37 @@ export function DashboardView({
       </div>
 
       <div className="flex min-h-0 flex-1">
+        {/*
+          A column, not a block: the panel scrolls its own contents and the
+          button below it stays put. Laid out as a block, the panel's full
+          height pushed the button off the bottom of the sheet, where no amount
+          of scrolling reached it — on a phone there was then no way to close
+          the filters and look at the map.
+        */}
         <div
           className={`${
-            panelOpen ? 'fixed inset-x-0 bottom-0 top-32 z-20 bg-white' : 'hidden'
-          } w-full lg:relative lg:inset-auto lg:block lg:w-80 lg:shrink-0 lg:border-r lg:border-stone-200`}
+            panelOpen ? 'fixed inset-x-0 bottom-0 top-32 z-20 flex flex-col bg-white' : 'hidden'
+          } w-full lg:relative lg:inset-auto lg:flex lg:w-80 lg:shrink-0 lg:flex-col lg:border-r lg:border-stone-200`}
         >
-          <FilterPanel
-            filters={filters}
-            species={species}
-            locations={locations}
-            resultCount={stats?.total ?? null}
-            onChange={onFiltersChange}
-          />
-          <div className="border-t border-stone-200 p-3 lg:hidden">
-            <button type="button" className="btn-primary w-full" onClick={() => setPanelOpen(false)}>
-              {t('filters.showResults', { count: stats ? stats.total.toLocaleString() : '' })}
+          <div className="min-h-0 flex-1">
+            <FilterPanel
+              filters={filters}
+              species={species}
+              locations={locations}
+              resultCount={stats?.total ?? null}
+              onChange={onFiltersChange}
+              onClose={() => setPanelOpen(false)}
+            />
+          </div>
+          <div className="shrink-0 border-t border-stone-200 p-3 lg:hidden">
+            <button
+              type="button"
+              className="btn-primary w-full"
+              onClick={() => setPanelOpen(false)}
+            >
+              {stats
+                ? t('filters.showResults', { count: stats.total.toLocaleString() })
+                : t('filters.showResultsPending')}
             </button>
           </div>
         </div>
