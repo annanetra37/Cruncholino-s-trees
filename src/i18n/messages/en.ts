@@ -182,6 +182,8 @@ export const en = {
   'filters.anyCity': 'Any city',
   'filters.anyRegion': 'Any region',
   'filters.showResults': 'Show {count} results',
+  'filters.showResultsPending': 'Show results',
+  'filters.close': 'Close filters',
   'filters.resetWithCount': 'Reset ({count})',
 
   'legend.title': 'Legend',

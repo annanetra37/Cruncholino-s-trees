@@ -40,9 +40,18 @@ type Props = {
   locations: LocationFilters | null;
   resultCount: number | null;
   onChange: (next: Filters) => void;
+  /** Closes the panel. Only the phone layout shows it as something to close. */
+  onClose?: () => void;
 };
 
-export function FilterPanel({ filters, species, locations, resultCount, onChange }: Props) {
+export function FilterPanel({
+  filters,
+  species,
+  locations,
+  resultCount,
+  onChange,
+  onClose,
+}: Props) {
   const { t, locale } = useLocale();
 
   const grouped = useMemo(() => {
@@ -80,14 +89,26 @@ export function FilterPanel({ filters, species, locations, resultCount, onChange
               : t('filters.matchCount', { count: resultCount.toLocaleString() })}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn-ghost"
-          disabled={activeCount === 0}
-          onClick={() => onChange(EMPTY_FILTERS)}
-        >
-          {activeCount ? t('filters.resetWithCount', { count: activeCount }) : t('common.reset')}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="btn-ghost"
+            disabled={activeCount === 0}
+            onClick={() => onChange(EMPTY_FILTERS)}
+          >
+            {activeCount ? t('filters.resetWithCount', { count: activeCount }) : t('common.reset')}
+          </button>
+          {onClose ? (
+            <button
+              type="button"
+              className="btn-ghost lg:hidden"
+              aria-label={t('filters.close')}
+              onClick={onClose}
+            >
+              ✕
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <label className="block">
