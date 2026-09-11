@@ -54,6 +54,17 @@ enum FruitQuality {
   UNKNOWN
 }
 
+/// How hard the fruit is to actually pick. Separate from `FruitQuality`,
+/// which says whether the fruit is worth picking: a tree can carry a fine crop
+/// ten metres up, and for someone planning a route that is the difference
+/// between a stop and a detour.
+enum Reachability {
+  GROUND
+  LADDER
+  OUT_OF_REACH
+  UNKNOWN
+}
+
 enum GeocodeStatus {
   OK
   FAILED
@@ -124,6 +135,7 @@ model Tree {
   ageYearsEstimate Int?         @map("age_years_estimate")
   condition        Condition    @default(UNKNOWN)
   fruitQuality     FruitQuality @default(UNKNOWN) @map("fruit_quality")
+  reachability     Reachability @default(UNKNOWN)
   notes            String?
 
   // Resolved location, denormalised so the dashboard can filter on it without
@@ -158,6 +170,7 @@ model Tree {
   @@index([condition])
   @@index([ageBand])
   @@index([fruitQuality])
+  @@index([reachability])
   @@index([city])
   @@index([region])
   @@index([status])

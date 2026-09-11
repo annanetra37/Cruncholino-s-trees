@@ -6,7 +6,13 @@ import { useRouter } from 'next/navigation';
 import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { SpeciesPicker } from '@/components/SpeciesPicker';
 import { LocationStep, type PickedLocation } from '@/components/LocationStep';
-import { AGE_BANDS, CONDITIONS, FRUIT_QUALITIES, TREE_STATUSES } from '@/lib/constants';
+import {
+  AGE_BANDS,
+  CONDITIONS,
+  FRUIT_QUALITIES,
+  REACHABILITIES,
+  TREE_STATUSES,
+} from '@/lib/constants';
 import { useT } from '@/i18n/client';
 import { ApiClientError, apiFetch } from '@/lib/client/api';
 import type { SpeciesOption } from '@/lib/client/types';
@@ -19,6 +25,7 @@ type EditableTree = {
   condition: string;
   ageBand: string;
   fruitQuality: string;
+  reachability: string;
   notes: string | null;
   status: string;
   city: string | null;
@@ -42,6 +49,7 @@ export function EditTreeForm({
   const [condition, setCondition] = useState(tree.condition);
   const [ageBand, setAgeBand] = useState(tree.ageBand);
   const [fruitQuality, setFruitQuality] = useState(tree.fruitQuality);
+  const [reachability, setReachability] = useState(tree.reachability);
   const [notes, setNotes] = useState(tree.notes ?? '');
   const [status, setStatus] = useState(tree.status);
   const [city, setCity] = useState(tree.city ?? '');
@@ -74,6 +82,7 @@ export function EditTreeForm({
           condition,
           ageBand,
           fruitQuality,
+          reachability,
           notes: notes.trim() || null,
           ...(canModerate ? { status } : {}),
           ...(moved ? { latitude: location.latitude, longitude: location.longitude } : {}),
@@ -125,6 +134,12 @@ export function EditTreeForm({
           onChange={setFruitQuality}
         />
         <ChoiceGroup
+          legendKey="field.reachability"
+          options={REACHABILITIES}
+          value={reachability}
+          onChange={setReachability}
+        />
+        <ChoiceGroup
           legendKey="field.age"
           options={AGE_BANDS}
           value={ageBand}
@@ -135,9 +150,7 @@ export function EditTreeForm({
       <section className="card space-y-4 p-4">
         <h2 className="text-lg font-bold">{t('edit.position')}</h2>
         <LocationStep value={location} onChange={setLocation} />
-        {moved ? (
-          <p className="text-sm text-amber-800">{t('edit.moved')}</p>
-        ) : null}
+        {moved ? <p className="text-sm text-amber-800">{t('edit.moved')}</p> : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
@@ -185,7 +198,9 @@ export function EditTreeForm({
       </section>
 
       {error ? (
-        <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>
+        <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          {error}
+        </p>
       ) : null}
       {saved ? <p className="text-sm text-emerald-800">{t('edit.saved')}</p> : null}
 

@@ -5,7 +5,13 @@ import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/authz';
 import { getT } from '@/i18n/server';
 import { speciesName, speciesSecondaryName } from '@/lib/species-name';
-import { CONDITIONS, FRUIT_QUALITIES, conditionColor, labelKeyFor } from '@/lib/constants';
+import {
+  CONDITIONS,
+  FRUIT_QUALITIES,
+  REACHABILITIES,
+  conditionColor,
+  labelKeyFor,
+} from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,8 +71,9 @@ export default async function MyTreesPage() {
                 </div>
 
                 <p className="text-sm text-stone-600">
-                  {label(CONDITIONS, tree.condition)} ·{' '}
-                  {label(FRUIT_QUALITIES, tree.fruitQuality)}
+                  {label(CONDITIONS, tree.condition)} · {label(FRUIT_QUALITIES, tree.fruitQuality)}
+                  {' · '}
+                  {label(REACHABILITIES, tree.reachability)}
                 </p>
 
                 {tree.status !== 'PUBLISHED' ? (

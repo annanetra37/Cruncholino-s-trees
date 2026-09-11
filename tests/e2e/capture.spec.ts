@@ -21,6 +21,7 @@ test.describe('capture flow', () => {
       .first()
       .click();
     await page.getByRole('radio', { name: 'Good Healthy, no visible damage' }).click();
+    await page.getByRole('radio', { name: /Needs a ladder/ }).click();
     await page.getByRole('radio', { name: 'Old Thick trunk, veteran' }).click();
 
     await page.getByRole('button', { name: 'Save tree' }).click();
@@ -32,6 +33,12 @@ test.describe('capture flow', () => {
     // T4.3 — the address confirmation step is part of the flow, and is present
     // whether or not the geocoder answered.
     await expect(page.getByText('Address we found')).toBeVisible();
+
+    // Reachability came back with the tree: a fine crop ten metres up is a
+    // different proposition from one at arm's length, so it has to survive the
+    // round trip rather than just be collectable.
+    await page.goto('/my-trees');
+    await expect(page.getByText('Needs a ladder').first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('shows the address of the pin before the tree is saved', async ({ page }) => {

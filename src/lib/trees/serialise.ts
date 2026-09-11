@@ -27,6 +27,7 @@ export function toTreeDto(row: TreeRow, options: { fuzz?: boolean } = {}) {
     ageYearsEstimate: row.age_years_estimate,
     condition: row.condition,
     fruitQuality: row.fruit_quality,
+    reachability: row.reachability,
     notes: row.notes,
     address: {
       line: row.address_line,
@@ -74,6 +75,7 @@ export function toFeature(row: GeoJsonRow, options: { fuzz?: boolean } = {}): Tr
       condition: row.condition,
       ageBand: row.age_band,
       fruitQuality: row.fruit_quality,
+      reachability: row.reachability,
       city: row.city,
     },
   };

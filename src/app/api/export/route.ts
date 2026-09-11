@@ -30,6 +30,7 @@ const COLUMNS = [
   'age_years_estimate',
   'condition',
   'fruit_quality',
+  'reachability',
   'address_line',
   'city',
   'district',
@@ -70,6 +71,7 @@ async function* readBatches(where: Prisma.Sql): AsyncGenerator<ExportRow[]> {
         t.id, s.slug AS species_slug, s.name_en AS species_name_en, s.name_hy AS species_name_hy,
         t.latitude, t.longitude, t.age_band::text AS age_band, t.age_years_estimate,
         t.condition::text AS condition, t.fruit_quality::text AS fruit_quality,
+        t.reachability::text AS reachability,
         t.address_line, t.city, t.district, t.region, t.country, t.country_code, t.postal_code,
         t.geocode_status::text AS geocode_status, t.location_source::text AS location_source,
         t.accuracy_m, t.status::text AS status, t.notes, t.created_at, t.updated_at
@@ -95,7 +97,10 @@ export const GET = route('export', async (request) => {
   await requireRole(Role.REVIEWER);
 
   const url = new URL(request.url);
-  const format = z.enum(['csv', 'geojson']).default('csv').parse(url.searchParams.get('format') ?? 'csv');
+  const format = z
+    .enum(['csv', 'geojson'])
+    .default('csv')
+    .parse(url.searchParams.get('format') ?? 'csv');
   const filters = parseTreeFilters(url.searchParams);
   const where = buildTreeWhere(filters);
 
@@ -109,7 +114,9 @@ export const GET = route('export', async (request) => {
         if (format === 'csv') {
           send(`${COLUMNS.join(',')}\n`);
           for await (const batch of readBatches(where)) {
-            send(batch.map((row) => COLUMNS.map((c) => csvCell(row[c])).join(',')).join('\n') + '\n');
+            send(
+              batch.map((row) => COLUMNS.map((c) => csvCell(row[c])).join(',')).join('\n') + '\n',
+            );
           }
         } else {
           send('{"type":"FeatureCollection","features":[');

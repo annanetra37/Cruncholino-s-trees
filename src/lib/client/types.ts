@@ -19,6 +19,7 @@ export type TreeSummary = {
   ageYearsEstimate: number | null;
   condition: string;
   fruitQuality: string;
+  reachability: string;
   notes: string | null;
   address: {
     line: string | null;

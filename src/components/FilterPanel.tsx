@@ -7,7 +7,13 @@
  * bookmarkable, survives a reload, and can be pasted into a bug report.
  */
 import { useMemo } from 'react';
-import { AGE_BANDS, CATEGORIES, CONDITIONS, FRUIT_QUALITIES } from '@/lib/constants';
+import {
+  AGE_BANDS,
+  CATEGORIES,
+  CONDITIONS,
+  FRUIT_QUALITIES,
+  REACHABILITIES,
+} from '@/lib/constants';
 import { useLocale } from '@/i18n/client';
 import { speciesName, speciesSecondaryName } from '@/lib/species-name';
 import { regionNameHy } from '@/lib/geocode/armenia';
@@ -19,6 +25,7 @@ export type Filters = {
   age_band: string[];
   condition: string[];
   fruit_quality: string[];
+  reachability: string[];
   city: string;
   region: string;
   q: string;
@@ -29,6 +36,7 @@ export const EMPTY_FILTERS: Filters = {
   age_band: [],
   condition: [],
   fruit_quality: [],
+  reachability: [],
   city: '',
   region: '',
   q: '',
@@ -66,6 +74,7 @@ export function FilterPanel({
     filters.age_band.length +
     filters.condition.length +
     filters.fruit_quality.length +
+    filters.reachability.length +
     (filters.city ? 1 : 0) +
     (filters.region ? 1 : 0) +
     (filters.q ? 1 : 0);
@@ -169,6 +178,12 @@ export function FilterPanel({
         options={FRUIT_QUALITIES}
         selected={filters.fruit_quality}
         onToggle={(value) => toggle('fruit_quality', value)}
+      />
+      <ChipGroup
+        legendKey="field.reachability"
+        options={REACHABILITIES}
+        selected={filters.reachability}
+        onToggle={(value) => toggle('reachability', value)}
       />
 
       <label className="block">

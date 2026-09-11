@@ -79,7 +79,8 @@ export const POST = route('trees.create', async (request) => {
 
   const species = await prisma.species.findUnique({ where: { id: input.speciesId } });
   if (!species) throw badRequest('Unknown species', { field: 'speciesId' });
-  if (!species.isActive) throw badRequest('That species is no longer available', { field: 'speciesId' });
+  if (!species.isActive)
+    throw badRequest('That species is no longer available', { field: 'speciesId' });
 
   // The address is a convenience; a geocoder outage must not cost a
   // contributor the observation they walked out to record (T3.7).
@@ -109,6 +110,7 @@ export const POST = route('trees.create', async (request) => {
         ageYearsEstimate: input.ageYearsEstimate ?? null,
         condition: input.condition,
         fruitQuality: input.fruitQuality,
+        reachability: input.reachability,
         notes: input.notes ?? null,
         addressLine: address.addressLine ?? null,
         city: address.city ?? null,
