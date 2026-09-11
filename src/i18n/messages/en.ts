@@ -18,6 +18,7 @@ export const en = {
   'common.edit': 'Edit',
   'common.loading': 'Loading…',
   'common.reset': 'Reset',
+  'common.search': 'Search',
   'common.saving': 'Saving…',
   'common.status': 'Status',
   'common.none': '—',
@@ -108,6 +109,13 @@ export const en = {
   'location.accuracyPoor':
     'This position is only accurate to about {accuracy}, which means it came from your network rather than from GPS. Drag the pin onto the tree — or open this page on a phone, outdoors, where GPS gets within a few metres.',
   'location.hint': 'Tap the map or drag the pin to correct the position.',
+  'location.searchLabel': 'Or type an address or coordinates',
+  'location.searchPlaceholder': 'e.g. Abovyan 12, Yerevan — or 40.18726, 44.51520',
+  'location.searching': 'Searching…',
+  'location.searchNone':
+    'Nothing found for that. Try a street and a city, or drop the pin by hand.',
+  'location.searchFailed':
+    'The address search is unavailable right now. Coordinates still work, and you can drop the pin by hand.',
   'location.addressLooking': 'Looking up the address…',
   'location.addressUnknown':
     'No address found for this spot. The tree still saves — the coordinates are what matter.',

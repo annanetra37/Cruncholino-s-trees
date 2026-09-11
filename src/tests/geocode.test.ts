@@ -2,8 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import { cacheKey } from '@/lib/geocode';
 import {
+  normaliseFeatureSearch,
   normaliseMapTiler,
   normaliseNominatim,
+  normaliseNominatimSearch,
   normalisePhoton,
 } from '@/lib/geocode/normalise';
 
@@ -116,7 +118,9 @@ describe('normalisePhoton', () => {
 
   it('canonicalises the marz like every other provider', () => {
     const result = normalisePhoton({
-      features: [{ properties: { name: 'Somewhere', state: 'Shirak Province', countrycode: 'am' } }],
+      features: [
+        { properties: { name: 'Somewhere', state: 'Shirak Province', countrycode: 'am' } },
+      ],
     });
     expect(result.region).toBe('Shirak');
   });
@@ -125,5 +129,62 @@ describe('normalisePhoton', () => {
     expect(normalisePhoton({ features: [] }).city).toBeNull();
     expect(normalisePhoton(null).city).toBeNull();
     expect(normalisePhoton('nope').city).toBeNull();
+  });
+});
+
+describe('search results', () => {
+  it('reads Nominatim search rows into points', () => {
+    // The shape Nominatim actually returns for /search: a bare array, with the
+    // coordinates as strings.
+    const matches = normaliseNominatimSearch([
+      {
+        lat: '40.7894',
+        lon: '43.8475',
+        display_name: 'Abovyan Street, Gyumri, Shirak, Armenia',
+        address: { road: 'Abovyan Street', city: 'Gyumri', state: 'Shirak', country_code: 'am' },
+      },
+    ]);
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.latitude).toBeCloseTo(40.7894);
+    expect(matches[0]?.longitude).toBeCloseTo(43.8475);
+    expect(matches[0]?.label).toContain('Abovyan');
+    expect(matches[0]?.address.city).toBe('Gyumri');
+    expect(matches[0]?.address.region).toBe('Shirak');
+  });
+
+  it('drops a row with no usable coordinates rather than placing a pin at 0,0', () => {
+    expect(normaliseNominatimSearch([{ display_name: 'Somewhere' }])).toEqual([]);
+    expect(normaliseNominatimSearch([{ lat: 'north', lon: '43.8', display_name: 'x' }])).toEqual(
+      [],
+    );
+  });
+
+  it('survives a provider answering with something else entirely', () => {
+    expect(normaliseNominatimSearch(null)).toEqual([]);
+    expect(normaliseNominatimSearch({ error: 'rate limited' })).toEqual([]);
+    expect(normaliseFeatureSearch(null, 'photon')).toEqual([]);
+    expect(normaliseFeatureSearch({ features: 'nope' }, 'photon')).toEqual([]);
+  });
+
+  it('reads GeoJSON search results, lon/lat order and all', () => {
+    const matches = normaliseFeatureSearch(
+      {
+        features: [
+          {
+            geometry: { type: 'Point', coordinates: [43.8475, 40.7894] },
+            properties: { name: 'Abovyan', city: 'Gyumri', state: 'Shirak', countrycode: 'AM' },
+          },
+        ],
+      },
+      'photon',
+    );
+
+    expect(matches).toHaveLength(1);
+    // GeoJSON is [longitude, latitude]; getting this backwards puts Armenian
+    // trees in the Indian Ocean.
+    expect(matches[0]?.latitude).toBeCloseTo(40.7894);
+    expect(matches[0]?.longitude).toBeCloseTo(43.8475);
+    expect(matches[0]?.address.city).toBe('Gyumri');
   });
 });

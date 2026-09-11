@@ -54,10 +54,7 @@ export function normaliseNominatim(payload: unknown): NormalisedAddress {
     district: first(address.city_district, address.suburb, address.district, address.county),
     // Armenia's marzer arrive as `state`. The column stays generic; the value
     // is canonicalised so one province cannot appear under four spellings.
-    region: canonicalRegion(
-      first(address.state, address.region, address.province),
-      countryCode,
-    ),
+    region: canonicalRegion(first(address.state, address.region, address.province), countryCode),
     country: first(address.country),
     countryCode,
     postalCode: first(address.postcode),
@@ -127,4 +124,82 @@ export function normaliseMapTiler(payload: unknown): NormalisedAddress {
     countryCode,
     postalCode: first(byType('postal_code')),
   };
+}
+
+/** A candidate place from a text search, with the coordinates to move a pin to. */
+export type PlaceMatch = {
+  label: string;
+  latitude: number;
+  longitude: number;
+  address: NormalisedAddress;
+};
+
+function coord(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Search results, per provider.
+ *
+ * Each provider is reduced to the same three things — a label, a point, and the
+ * normalised address — by reusing the reverse-geocoding normalisers on a single
+ * result. A search result and a reverse lookup carry the same address shape;
+ * only the envelope around them differs.
+ */
+export function normaliseNominatimSearch(payload: unknown): PlaceMatch[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const item = entry as Record<string, unknown>;
+    const latitude = coord(item.lat);
+    const longitude = coord(item.lon);
+    if (latitude === null || longitude === null) return [];
+    const address = normaliseNominatim(item);
+    return [
+      {
+        label: first(item.display_name, address.addressLine) ?? `${latitude}, ${longitude}`,
+        latitude,
+        longitude,
+        address,
+      },
+    ];
+  });
+}
+
+/** Photon and MapTiler both answer with GeoJSON features. */
+export function normaliseFeatureSearch(
+  payload: unknown,
+  kind: 'photon' | 'maptiler',
+): PlaceMatch[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const features = (payload as Record<string, unknown>).features;
+  if (!Array.isArray(features)) return [];
+
+  return features.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const feature = entry as Record<string, unknown>;
+    const geometry = (feature.geometry ?? {}) as Record<string, unknown>;
+    const coordinates = Array.isArray(geometry.coordinates) ? geometry.coordinates : [];
+    const longitude = coord(coordinates[0]);
+    const latitude = coord(coordinates[1]);
+    if (latitude === null || longitude === null) return [];
+
+    // The normalisers read the first feature of a collection, so hand each
+    // result over as a collection of one.
+    const single = { features: [feature] };
+    const address = kind === 'photon' ? normalisePhoton(single) : normaliseMapTiler(single);
+    const properties = (feature.properties ?? {}) as Record<string, unknown>;
+
+    return [
+      {
+        label:
+          first(properties.place_name, properties.name, address.addressLine) ??
+          `${latitude}, ${longitude}`,
+        latitude,
+        longitude,
+        address,
+      },
+    ];
+  });
 }

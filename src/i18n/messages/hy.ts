@@ -21,6 +21,7 @@ export const hy: Messages = {
   'common.edit': 'Խմբագրել',
   'common.loading': 'Բեռնվում է…',
   'common.reset': 'Մաքրել',
+  'common.search': 'Որոնել',
   'common.saving': 'Պահպանվում է…',
   'common.status': 'Վիճակ',
   'common.none': '—',
@@ -111,6 +112,12 @@ export const hy: Messages = {
   'location.accuracyPoor':
     'Այս դիրքի ճշտությունը մոտ {accuracy} է, այսինքն՝ ստացվել է ցանցից, ոչ թե GPS-ից։ Քաշիր նշիչը ծառի վրա, կամ բաց արա այս էջը հեռախոսով՝ դրսում, որտեղ GPS-ը ճշտում է մի քանի մետրի սահմաններում։',
   'location.hint': 'Հպիր քարտեզին կամ քաշիր նշիչը՝ տեղը ճշտելու համար։',
+  'location.searchLabel': 'Կամ մուտքագրիր հասցե կամ կոորդինատներ',
+  'location.searchPlaceholder': 'օր.՝ Աբովյան 12, Երեւան — կամ 40.18726, 44.51520',
+  'location.searching': 'Որոնվում է…',
+  'location.searchNone': 'Ոչինչ չգտնվեց։ Փորձիր փողոց եւ քաղաք, կամ նշիչը տեղադրիր ձեռքով։',
+  'location.searchFailed':
+    'Հասցեների որոնումն այս պահին հասանելի չէ։ Կոորդինատները շարունակում են աշխատել, նշիչը կարող ես տեղադրել ձեռքով։',
   'location.addressLooking': 'Հասցեն որոնվում է…',
   'location.addressUnknown':
     'Այս կետի համար հասցե չգտնվեց։ Ծառը միեւնույն է կպահվի՝ կարեւորը կոորդինատներն են։',
