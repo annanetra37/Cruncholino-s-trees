@@ -45,6 +45,7 @@ export default async function EditTreePage({ params }: { params: Promise<{ id: s
         condition: tree.condition,
         ageBand: tree.ageBand,
         fruitQuality: tree.fruitQuality,
+        reachability: tree.reachability,
         notes: tree.notes,
         status: tree.status,
         city: tree.city,

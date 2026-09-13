@@ -1,7 +1,14 @@
 /**
  * Request validation for the tree endpoints (T3.1, T3.4).
  */
-import { AgeBand, Condition, FruitQuality, LocationSource, TreeStatus } from '@prisma/client';
+import {
+  AgeBand,
+  Condition,
+  FruitQuality,
+  LocationSource,
+  Reachability,
+  TreeStatus,
+} from '@prisma/client';
 import { z } from 'zod';
 
 /**
@@ -35,6 +42,7 @@ export const createTreeSchema = z.object({
   ageYearsEstimate: z.coerce.number().int().min(0).max(2000).optional().nullable(),
   condition: z.enum(Condition).default(Condition.UNKNOWN),
   fruitQuality: z.enum(FruitQuality).default(FruitQuality.UNKNOWN),
+  reachability: z.enum(Reachability).default(Reachability.UNKNOWN),
   notes: z.string().trim().max(2000).optional().nullable(),
   /** Set when the contributor corrected the reverse-geocoded address (T4.3). */
   addressOverride: z

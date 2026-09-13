@@ -8,11 +8,15 @@
 import { env } from '@/env';
 import { logger } from '@/lib/logger';
 import {
+  normaliseFeatureSearch,
   normaliseMapTiler,
   normaliseNominatim,
+  normaliseNominatimSearch,
   normalisePhoton,
   type NormalisedAddress,
+  type PlaceMatch,
 } from '@/lib/geocode/normalise';
+import { ARMENIA_COUNTRY_CODE } from '@/lib/geocode/armenia';
 
 export type GeocodeLookup = {
   address: NormalisedAddress;
@@ -140,4 +144,91 @@ export async function reverseGeocode(
   }
 
   return null;
+}
+
+export type { PlaceMatch };
+
+/**
+ * Forward geocoding, for a contributor who knows the address but is not
+ * standing at the tree — mapping an orchard from a list, or correcting a record
+ * later from a desk.
+ *
+ * Scoped to Armenia (Q6). Without that, "Abovyan street" matches a dozen
+ * countries and the useful answer is never first.
+ */
+function buildSearchUrl(query: string, limit: number): string | null {
+  switch (env.GEOCODING_PROVIDER) {
+    case 'nominatim': {
+      // GEOCODING_BASE_URL points at the *reverse* endpoint, so derive the
+      // search one from the same host rather than assuming the public server.
+      const base = env.GEOCODING_BASE_URL
+        ? env.GEOCODING_BASE_URL.replace(/\/reverse\/?$/, '/search')
+        : 'https://nominatim.openstreetmap.org/search';
+      const url = new URL(base);
+      url.searchParams.set('format', 'jsonv2');
+      url.searchParams.set('q', query);
+      url.searchParams.set('limit', String(limit));
+      url.searchParams.set('addressdetails', '1');
+      url.searchParams.set('countrycodes', ARMENIA_COUNTRY_CODE.toLowerCase());
+      url.searchParams.set('accept-language', 'en');
+      return url.toString();
+    }
+    case 'photon': {
+      const base = env.GEOCODING_BASE_URL
+        ? env.GEOCODING_BASE_URL.replace(/\/reverse\/?$/, '/api')
+        : 'https://photon.komoot.io/api';
+      const url = new URL(base);
+      url.searchParams.set('q', query);
+      url.searchParams.set('limit', String(limit));
+      url.searchParams.set('lang', 'en');
+      // Photon has no country filter, only a bias: centre it on Armenia.
+      url.searchParams.set('lat', '40.29');
+      url.searchParams.set('lon', '44.93');
+      return url.toString();
+    }
+    case 'maptiler': {
+      const base = env.GEOCODING_BASE_URL ?? 'https://api.maptiler.com/geocoding';
+      const url = new URL(`${base.replace(/\/$/, '')}/${encodeURIComponent(query)}.json`);
+      if (env.GEOCODING_API_KEY) url.searchParams.set('key', env.GEOCODING_API_KEY);
+      url.searchParams.set('country', ARMENIA_COUNTRY_CODE.toLowerCase());
+      url.searchParams.set('limit', String(limit));
+      return url.toString();
+    }
+    default:
+      return null;
+  }
+}
+
+function extractMatches(payload: unknown): PlaceMatch[] {
+  switch (env.GEOCODING_PROVIDER) {
+    case 'photon':
+      return normaliseFeatureSearch(payload, 'photon');
+    case 'maptiler':
+      return normaliseFeatureSearch(payload, 'maptiler');
+    default:
+      return normaliseNominatimSearch(payload);
+  }
+}
+
+/**
+ * Returns an empty list rather than throwing, for the same reason
+ * `reverseGeocode` returns null: a search that finds nothing — or a provider
+ * that is down — is an ordinary outcome, and the contributor can still drop a
+ * pin by hand.
+ */
+export async function searchPlaces(query: string, limit = 5): Promise<PlaceMatch[]> {
+  const url = buildSearchUrl(query, limit);
+  if (!url) return [];
+
+  try {
+    await throttle();
+    const payload = await fetchOnce(url);
+    return extractMatches(payload).slice(0, limit);
+  } catch (error) {
+    logger.warn('place search failed', {
+      provider: env.GEOCODING_PROVIDER,
+      reason: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
 }

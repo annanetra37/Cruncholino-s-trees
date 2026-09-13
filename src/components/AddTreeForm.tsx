@@ -16,7 +16,7 @@ import { LocationStep, type PickedLocation } from '@/components/LocationStep';
 import { SpeciesPicker } from '@/components/SpeciesPicker';
 import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { PhotoUploader, type UploadedPhoto } from '@/components/PhotoUploader';
-import { AGE_BANDS, CONDITIONS, FRUIT_QUALITIES } from '@/lib/constants';
+import { AGE_BANDS, CONDITIONS, FRUIT_QUALITIES, REACHABILITIES } from '@/lib/constants';
 import { useT } from '@/i18n/client';
 import { ApiClientError, apiFetch } from '@/lib/client/api';
 import { enqueue, sync } from '@/lib/client/offline-queue';
@@ -27,7 +27,11 @@ type CreatedTree = {
     id: string;
     address: { line: string | null; city: string | null; region: string | null; status: string };
   };
-  warnings: Array<{ code: string; message: string; nearby: Array<{ id: string; distanceM: number }> }>;
+  warnings: Array<{
+    code: string;
+    message: string;
+    nearby: Array<{ id: string; distanceM: number }>;
+  }>;
 };
 
 const DRAFT_KEY = 'cruncholino:add-tree-draft';
@@ -41,6 +45,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
   const [condition, setCondition] = useState('UNKNOWN');
   const [ageBand, setAgeBand] = useState('UNKNOWN');
   const [fruitQuality, setFruitQuality] = useState('UNKNOWN');
+  const [reachability, setReachability] = useState('UNKNOWN');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
 
@@ -61,6 +66,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
       setCondition(draft.condition ?? 'UNKNOWN');
       setAgeBand(draft.ageBand ?? 'UNKNOWN');
       setFruitQuality(draft.fruitQuality ?? 'UNKNOWN');
+      setReachability(draft.reachability ?? 'UNKNOWN');
       setNotes(draft.notes ?? '');
     } catch {
       sessionStorage.removeItem(DRAFT_KEY);
@@ -70,9 +76,9 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
   useEffect(() => {
     sessionStorage.setItem(
       DRAFT_KEY,
-      JSON.stringify({ speciesId, condition, ageBand, fruitQuality, notes }),
+      JSON.stringify({ speciesId, condition, ageBand, fruitQuality, reachability, notes }),
     );
-  }, [speciesId, condition, ageBand, fruitQuality, notes]);
+  }, [speciesId, condition, ageBand, fruitQuality, reachability, notes]);
 
   const reset = useCallback(() => {
     setSpeciesId(null);
@@ -98,6 +104,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
       condition,
       ageBand,
       fruitQuality,
+      reachability,
       notes: notes.trim() || undefined,
       photos: photos.map((photo) => ({
         storageKey: photo.storageKey,
@@ -108,7 +115,7 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
       })),
       clientRef: crypto.randomUUID(),
     }),
-    [ageBand, condition, fruitQuality, location, notes, photos, speciesId],
+    [ageBand, condition, fruitQuality, location, notes, photos, reachability, speciesId],
   );
 
   const submit = useCallback(async () => {
@@ -327,6 +334,15 @@ export function AddTreeForm({ species }: { species: SpeciesOption[] }) {
           options={FRUIT_QUALITIES}
           value={fruitQuality}
           onChange={setFruitQuality}
+        />
+        {/* Reachability, not condition or crop: the fruit can be perfect and
+            still ten metres up, which for anyone planning a route is the
+            difference between a stop and a detour. */}
+        <ChoiceGroup
+          legendKey="field.reachability"
+          options={REACHABILITIES}
+          value={reachability}
+          onChange={setReachability}
         />
         <ChoiceGroup
           legendKey="field.age"

@@ -70,8 +70,14 @@ test.describe('dashboard', () => {
     await page.goto('/dashboard?view=list&city=Yerevan');
     const rows = page.locator('tbody tr');
     await expect(rows.first()).toBeVisible({ timeout: 20_000 });
+    // Find the column by its header rather than by position: pinning an index
+    // here means any new column silently reads the wrong cells.
+    const headers = await page.locator('thead th').allTextContents();
+    const cityColumn = headers.findIndex((header) => header.trim() === 'City');
+    expect(cityColumn).toBeGreaterThanOrEqual(0);
+
     // Every visible row must belong to the filtered city.
-    const cities = await page.locator('tbody tr td:nth-child(5)').allTextContents();
+    const cities = await page.locator(`tbody tr td:nth-child(${cityColumn + 1})`).allTextContents();
     expect(cities.every((city) => city.trim() === 'Yerevan')).toBe(true);
   });
 

@@ -24,6 +24,12 @@ describe('parseTreeFilters', () => {
     expect(() => parse('condition=EXCELLENT')).toThrow(z.ZodError);
   });
 
+  it('parses reachability like the other enum facets', () => {
+    expect(parse('reachability=GROUND,LADDER').reachability).toEqual(['GROUND', 'LADDER']);
+    expect(parse('').reachability).toBeUndefined();
+    expect(() => parse('reachability=CLIMBABLE')).toThrow(z.ZodError);
+  });
+
   it('parses a bbox in minLng,minLat,maxLng,maxLat order', () => {
     expect(parse('bbox=44.4,40.1,44.6,40.3').bbox).toEqual({
       minLng: 44.4,
@@ -71,6 +77,14 @@ describe('buildTreeWhere', () => {
     expect(withStatus.values).toContain('DRAFT');
   });
 
+  it('narrows on reachability, parameterised like every other enum', () => {
+    const where = buildTreeWhere({ reachability: ['GROUND', 'LADDER'] });
+    expect(where.sql).toContain('t.reachability::text IN');
+    expect(where.values).toContain('GROUND');
+    expect(where.values).toContain('LADDER');
+    expect(where.sql).not.toContain('GROUND');
+  });
+
   it('parameterises every filter value instead of interpolating it', () => {
     const where = buildTreeWhere({ city: "Yerevan'; DROP TABLE trees;--" });
     expect(where.sql).not.toContain('DROP TABLE');
@@ -81,7 +95,9 @@ describe('buildTreeWhere', () => {
     expect(buildTreeWhere({ bbox: { minLng: 1, minLat: 2, maxLng: 3, maxLat: 4 } }).sql).toContain(
       'ST_Intersects',
     );
-    expect(buildTreeWhere({ near: { lat: 40, lng: 44 }, radius_m: 100 }).sql).toContain('ST_DWithin');
+    expect(buildTreeWhere({ near: { lat: 40, lng: 44 }, radius_m: 100 }).sql).toContain(
+      'ST_DWithin',
+    );
   });
 
   it('ignores a radius with no point, rather than filtering to nothing', () => {

@@ -21,6 +21,7 @@ test.describe('capture flow', () => {
       .first()
       .click();
     await page.getByRole('radio', { name: 'Good Healthy, no visible damage' }).click();
+    await page.getByRole('radio', { name: /Needs a ladder/ }).click();
     await page.getByRole('radio', { name: 'Old Thick trunk, veteran' }).click();
 
     await page.getByRole('button', { name: 'Save tree' }).click();
@@ -32,6 +33,12 @@ test.describe('capture flow', () => {
     // T4.3 — the address confirmation step is part of the flow, and is present
     // whether or not the geocoder answered.
     await expect(page.getByText('Address we found')).toBeVisible();
+
+    // Reachability came back with the tree: a fine crop ten metres up is a
+    // different proposition from one at arm's length, so it has to survive the
+    // round trip rather than just be collectable.
+    await page.goto('/my-trees');
+    await expect(page.getByText('Needs a ladder').first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('shows the address of the pin before the tree is saved', async ({ page }) => {
@@ -81,6 +88,82 @@ test.describe('capture flow', () => {
     });
     await page
       .getByRole('radio', { name: /Apricot/ })
+      .first()
+      .click();
+    await expect(page.getByRole('button', { name: 'Save tree' })).toBeEnabled();
+  });
+
+  test('places the pin from typed coordinates, with no lookup', async ({ page }) => {
+    // Coordinates are already a point, so this must work with the geocoder
+    // unreachable. Fail the request to prove the path does not depend on it.
+    let searched = false;
+    await page.route('**/api/geocode/search**', (route) => {
+      searched = true;
+      return route.fulfill({ status: 503, body: '' });
+    });
+    await page.route('**/api/geocode/reverse**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'FAILED', cached: false, address: null }),
+      }),
+    );
+
+    await signIn(page);
+    await page.goto('/add');
+    await expect(page.getByTestId('location-map')).toBeVisible({ timeout: 60_000 });
+
+    await page.getByTestId('location-search').fill('40.79000, 43.84000');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+    await expect(page.getByText(/40\.79000, 43\.84000/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('MANUAL')).toBeVisible();
+    expect(searched).toBe(false);
+  });
+
+  test('places the pin from an address search', async ({ page }) => {
+    // The geocoder is a live third-party service, so the route is stubbed: what
+    // this covers is that a result can be picked and moves the pin.
+    await page.route('**/api/geocode/search**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'Abovyan',
+          results: [
+            {
+              label: 'Abovyan Street, Gyumri, Shirak',
+              latitude: 40.79,
+              longitude: 43.84,
+              city: 'Gyumri',
+              region: 'Shirak',
+            },
+          ],
+        }),
+      }),
+    );
+    await page.route('**/api/geocode/reverse**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'FAILED', cached: false, address: null }),
+      }),
+    );
+
+    await signIn(page);
+    await page.goto('/add');
+    await expect(page.getByTestId('location-map')).toBeVisible({ timeout: 60_000 });
+
+    await page.getByTestId('location-search').fill('Abovyan');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+    await page.getByRole('button', { name: /Abovyan Street, Gyumri/ }).click();
+    await expect(page.getByText(/40\.79000, 43\.84000/)).toBeVisible({ timeout: 15_000 });
+
+    // The tree still has to save from here — typing a place is a way of
+    // answering "where is it?", not a different flow.
+    await page
+      .getByRole('radio', { name: /Walnut/ })
       .first()
       .click();
     await expect(page.getByRole('button', { name: 'Save tree' })).toBeEnabled();

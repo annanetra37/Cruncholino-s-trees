@@ -21,6 +21,7 @@ export const hy: Messages = {
   'common.edit': 'Խմբագրել',
   'common.loading': 'Բեռնվում է…',
   'common.reset': 'Մաքրել',
+  'common.search': 'Որոնել',
   'common.saving': 'Պահպանվում է…',
   'common.status': 'Վիճակ',
   'common.none': '—',
@@ -111,6 +112,12 @@ export const hy: Messages = {
   'location.accuracyPoor':
     'Այս դիրքի ճշտությունը մոտ {accuracy} է, այսինքն՝ ստացվել է ցանցից, ոչ թե GPS-ից։ Քաշիր նշիչը ծառի վրա, կամ բաց արա այս էջը հեռախոսով՝ դրսում, որտեղ GPS-ը ճշտում է մի քանի մետրի սահմաններում։',
   'location.hint': 'Հպիր քարտեզին կամ քաշիր նշիչը՝ տեղը ճշտելու համար։',
+  'location.searchLabel': 'Կամ մուտքագրիր հասցե կամ կոորդինատներ',
+  'location.searchPlaceholder': 'օր.՝ Աբովյան 12, Երեւան — կամ 40.18726, 44.51520',
+  'location.searching': 'Որոնվում է…',
+  'location.searchNone': 'Ոչինչ չգտնվեց։ Փորձիր փողոց եւ քաղաք, կամ նշիչը տեղադրիր ձեռքով։',
+  'location.searchFailed':
+    'Հասցեների որոնումն այս պահին հասանելի չէ։ Կոորդինատները շարունակում են աշխատել, նշիչը կարող ես տեղադրել ձեռքով։',
   'location.addressLooking': 'Հասցեն որոնվում է…',
   'location.addressUnknown':
     'Այս կետի համար հասցե չգտնվեց։ Ծառը միեւնույն է կպահվի՝ կարեւորը կոորդինատներն են։',
@@ -122,6 +129,7 @@ export const hy: Messages = {
   'field.species': 'Տեսակ',
   'field.condition': 'Ծառի վիճակը',
   'field.fruitQuality': 'Պտղի որակը',
+  'field.reachability': 'Հասնո՞ւմ ես պտուղին',
   'field.age': 'Տարիքը',
   'field.city': 'Քաղաք',
   'field.region': 'Մարզ',
@@ -159,6 +167,15 @@ export const hy: Messages = {
   'fruit.NONE.hint': 'Այս տարի չի պտղաբերում',
   'fruit.UNKNOWN': 'Հայտնի չէ',
   'fruit.UNKNOWN.hint': '',
+
+  'reach.GROUND': 'Հեշտ է հավաքել',
+  'reach.GROUND.hint': 'Պտուղը ձեռքի հասանելիության սահմաններում է՝ գետնից',
+  'reach.LADDER': 'Սանդուղք է պետք',
+  'reach.LADDER.hint': 'Հասանելի է սանդուղքով կամ հավաքելու ձողով',
+  'reach.OUT_OF_REACH': 'Շատ բարձր է',
+  'reach.OUT_OF_REACH.hint': 'Պտուղն անհասանելի է առանց ծառը մագլցելու',
+  'reach.UNKNOWN': 'Վստահ չեմ',
+  'reach.UNKNOWN.hint': '',
 
   'category.FRUIT': 'Պտղատու',
   'category.NUT': 'Ընկուզեղեն',
@@ -221,6 +238,7 @@ export const hy: Messages = {
   'detail.tree': 'Ծառ',
   'detail.condition': 'Վիճակ',
   'detail.fruit': 'Պտուղ',
+  'detail.reach': 'Հասանելիություն',
   'detail.age': 'Տարիք',
   'detail.address': 'Հասցե',
   'detail.coordinates': 'Կոորդինատներ',

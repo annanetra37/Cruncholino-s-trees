@@ -10,6 +10,7 @@ import {
   AGE_BANDS,
   CONDITIONS,
   FRUIT_QUALITIES,
+  REACHABILITIES,
   SORT_OPTIONS,
   conditionColor,
   labelKeyFor,
@@ -74,6 +75,7 @@ export function TreeListView({
               <th className="px-3 py-2 font-semibold">{t('field.species')}</th>
               <th className="px-3 py-2 font-semibold">{t('detail.condition')}</th>
               <th className="px-3 py-2 font-semibold">{t('detail.fruit')}</th>
+              <th className="px-3 py-2 font-semibold">{t('detail.reach')}</th>
               <th className="px-3 py-2 font-semibold">{t('detail.age')}</th>
               <th className="px-3 py-2 font-semibold">{t('field.city')}</th>
               <th className="px-3 py-2 font-semibold">{t('list.address')}</th>
@@ -114,6 +116,7 @@ export function TreeListView({
                   </span>
                 </td>
                 <td className="px-3 py-2">{label(FRUIT_QUALITIES, tree.fruitQuality)}</td>
+                <td className="px-3 py-2">{label(REACHABILITIES, tree.reachability)}</td>
                 <td className="px-3 py-2">{label(AGE_BANDS, tree.ageBand)}</td>
                 <td className="px-3 py-2">{tree.address.city ?? t('common.none')}</td>
                 <td className="max-w-64 truncate px-3 py-2 text-stone-600">

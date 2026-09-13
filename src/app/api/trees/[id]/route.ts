@@ -34,7 +34,11 @@ async function loadTree(idParam: string) {
       species: true,
       photos: { orderBy: { sortOrder: 'asc' } },
       createdBy: { select: { id: true, name: true } },
-      revisions: { orderBy: { changedAt: 'desc' }, take: 50, include: { user: { select: { name: true } } } },
+      revisions: {
+        orderBy: { changedAt: 'desc' },
+        take: 50,
+        include: { user: { select: { name: true } } },
+      },
     },
   });
   if (!tree) throw notFound('That tree does not exist, or has been removed');
@@ -66,6 +70,7 @@ export const GET = route('trees.get', async (request, context) => {
       ageYearsEstimate: tree.ageYearsEstimate,
       condition: tree.condition,
       fruitQuality: tree.fruitQuality,
+      reachability: tree.reachability,
       notes: tree.notes,
       address: {
         line: tree.addressLine,
@@ -101,9 +106,7 @@ export const GET = route('trees.get', async (request, context) => {
         : [],
     },
     permissions: {
-      canEdit: Boolean(
-        user && (atLeast(user.role, Role.REVIEWER) || tree.createdById === user.id),
-      ),
+      canEdit: Boolean(user && (atLeast(user.role, Role.REVIEWER) || tree.createdById === user.id)),
       canModerate: atLeast(user?.role, Role.REVIEWER),
     },
   });
@@ -135,6 +138,7 @@ export const PATCH = route('trees.update', async (request, context) => {
   if (input.ageYearsEstimate !== undefined) data.ageYearsEstimate = input.ageYearsEstimate ?? null;
   if (input.condition) data.condition = input.condition;
   if (input.fruitQuality) data.fruitQuality = input.fruitQuality;
+  if (input.reachability) data.reachability = input.reachability;
   if (input.notes !== undefined) data.notes = input.notes ?? null;
   if (input.locationSource) data.locationSource = input.locationSource;
   if (input.accuracyM !== undefined) data.accuracyM = input.accuracyM;

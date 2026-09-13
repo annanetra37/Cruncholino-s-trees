@@ -18,6 +18,7 @@ import {
   GeocodeStatus,
   LocationSource,
   PrismaClient,
+  Reachability,
   Role,
   SpeciesCategory,
   TreeStatus,
@@ -99,6 +100,12 @@ const FRUIT = [
   FruitQuality.NONE,
   FruitQuality.UNKNOWN,
 ];
+const REACH = [
+  Reachability.GROUND,
+  Reachability.LADDER,
+  Reachability.OUT_OF_REACH,
+  Reachability.UNKNOWN,
+] as const;
 
 /** Deterministic PRNG so re-seeding produces the same map, not a new one. */
 function makeRandom(seed: number) {
@@ -177,6 +184,9 @@ async function main() {
       // A healthy tree can bear bad fruit and a struggling one can bear well;
       // the two fields are deliberately independent (T2.1).
       fruitQuality: condition === Condition.DEAD ? FruitQuality.NONE : pick(random, FRUIT),
+      // Independent of everything else: how high the fruit sits is a fact
+      // about the tree, not about its health or its crop.
+      reachability: pick(random, REACH),
       notes: random() > 0.7 ? 'Seeded demo record.' : null,
       city: place.city,
       region: place.region,

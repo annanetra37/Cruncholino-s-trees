@@ -43,6 +43,13 @@ export const FRUIT_QUALITIES = [
   { value: 'UNKNOWN', labelKey: 'fruit.UNKNOWN', hintKey: 'fruit.UNKNOWN.hint' },
 ] as const satisfies readonly Choice[];
 
+export const REACHABILITIES = [
+  { value: 'GROUND', labelKey: 'reach.GROUND', hintKey: 'reach.GROUND.hint' },
+  { value: 'LADDER', labelKey: 'reach.LADDER', hintKey: 'reach.LADDER.hint' },
+  { value: 'OUT_OF_REACH', labelKey: 'reach.OUT_OF_REACH', hintKey: 'reach.OUT_OF_REACH.hint' },
+  { value: 'UNKNOWN', labelKey: 'reach.UNKNOWN', hintKey: 'reach.UNKNOWN.hint' },
+] as const satisfies readonly Choice[];
+
 export const CATEGORIES = [
   { value: 'FRUIT', labelKey: 'category.FRUIT', shape: 'circle' },
   { value: 'NUT', labelKey: 'category.NUT', shape: 'triangle' },
@@ -76,4 +83,5 @@ export const ageRadius = (value: string): number =>
 export const labelKeyFor = (
   list: readonly Choice[],
   value: string | null | undefined,
-): MessageKey | null => (value ? (list.find((entry) => entry.value === value)?.labelKey ?? null) : null);
+): MessageKey | null =>
+  value ? (list.find((entry) => entry.value === value)?.labelKey ?? null) : null;

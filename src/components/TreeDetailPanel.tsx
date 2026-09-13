@@ -8,6 +8,7 @@ import {
   AGE_BANDS,
   CONDITIONS,
   FRUIT_QUALITIES,
+  REACHABILITIES,
   conditionColor,
   labelKeyFor,
 } from '@/lib/constants';
@@ -69,7 +70,12 @@ export function TreeDetailPanel({
             </p>
           ) : null}
         </div>
-        <button type="button" className="btn-ghost" onClick={onClose} aria-label={t('detail.close')}>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={onClose}
+          aria-label={t('detail.close')}
+        >
           ✕
         </button>
       </div>
@@ -106,6 +112,7 @@ export function TreeDetailPanel({
               </span>
             </Row>
             <Row label={t('detail.fruit')}>{label(FRUIT_QUALITIES, data.tree.fruitQuality)}</Row>
+            <Row label={t('detail.reach')}>{label(REACHABILITIES, data.tree.reachability)}</Row>
             <Row label={t('detail.age')}>
               {label(AGE_BANDS, data.tree.ageBand)}
               {data.tree.ageYearsEstimate
@@ -135,7 +142,9 @@ export function TreeDetailPanel({
                 <span className="ml-1 text-stone-400">{t('detail.approximate')}</span>
               ) : null}
               {data.tree.location.accuracyM ? (
-                <span className="ml-1 text-stone-400">±{Math.round(data.tree.location.accuracyM)} m</span>
+                <span className="ml-1 text-stone-400">
+                  ±{Math.round(data.tree.location.accuracyM)} m
+                </span>
               ) : null}
             </Row>
             <Row label={t('detail.addedBy')}>

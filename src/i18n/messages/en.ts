@@ -18,6 +18,7 @@ export const en = {
   'common.edit': 'Edit',
   'common.loading': 'Loading…',
   'common.reset': 'Reset',
+  'common.search': 'Search',
   'common.saving': 'Saving…',
   'common.status': 'Status',
   'common.none': '—',
@@ -108,6 +109,13 @@ export const en = {
   'location.accuracyPoor':
     'This position is only accurate to about {accuracy}, which means it came from your network rather than from GPS. Drag the pin onto the tree — or open this page on a phone, outdoors, where GPS gets within a few metres.',
   'location.hint': 'Tap the map or drag the pin to correct the position.',
+  'location.searchLabel': 'Or type an address or coordinates',
+  'location.searchPlaceholder': 'e.g. Abovyan 12, Yerevan — or 40.18726, 44.51520',
+  'location.searching': 'Searching…',
+  'location.searchNone':
+    'Nothing found for that. Try a street and a city, or drop the pin by hand.',
+  'location.searchFailed':
+    'The address search is unavailable right now. Coordinates still work, and you can drop the pin by hand.',
   'location.addressLooking': 'Looking up the address…',
   'location.addressUnknown':
     'No address found for this spot. The tree still saves — the coordinates are what matter.',
@@ -119,6 +127,7 @@ export const en = {
   'field.species': 'Species',
   'field.condition': 'Condition of the tree',
   'field.fruitQuality': 'Fruit quality',
+  'field.reachability': 'Can you reach the fruit?',
   'field.age': 'Age',
   'field.city': 'City',
   'field.region': 'Region',
@@ -156,6 +165,15 @@ export const en = {
   'fruit.NONE.hint': 'Not bearing this year',
   'fruit.UNKNOWN': 'Not sure',
   'fruit.UNKNOWN.hint': '',
+
+  'reach.GROUND': 'Easy to pick',
+  'reach.GROUND.hint': 'Fruit within arm’s reach from the ground',
+  'reach.LADDER': 'Needs a ladder',
+  'reach.LADDER.hint': 'Reachable with a ladder or a picking pole',
+  'reach.OUT_OF_REACH': 'Too high',
+  'reach.OUT_OF_REACH.hint': 'Fruit is out of reach without climbing',
+  'reach.UNKNOWN': 'Not sure',
+  'reach.UNKNOWN.hint': '',
 
   'category.FRUIT': 'Fruit',
   'category.NUT': 'Nut',
@@ -218,6 +236,7 @@ export const en = {
   'detail.tree': 'Tree',
   'detail.condition': 'Condition',
   'detail.fruit': 'Fruit',
+  'detail.reach': 'Reach',
   'detail.age': 'Age',
   'detail.address': 'Address',
   'detail.coordinates': 'Coordinates',

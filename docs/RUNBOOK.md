@@ -516,6 +516,20 @@ or set `GEOCODING_PROVIDER=maptiler` with a key and
 Failed lookups are never lost work: the tree is stored with
 `geocode_status = FAILED` and the hourly `cron-geocode` service retries it.
 
+The provider is used in three places, all sharing that one throttle and one
+write rate limit:
+
+| Path                       | Called by                                     | Cost                                                    |
+| -------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| Reverse, on save           | Every tree that is stored                     | One lookup, then cached                                 |
+| `GET /api/geocode/reverse` | The capture form's address preview            | Usually the same lookup the save then reuses from cache |
+| `GET /api/geocode/search`  | Typing an address in the capture or edit form | One lookup per search, not cached                       |
+
+Address search is scoped to Armenia (`countrycodes=am`), since "Abovyan street"
+otherwise matches a dozen countries and the useful answer is never first. Typed
+coordinates never reach the provider at all — they are already a point, so they
+keep working when it is down.
+
 ---
 
 ## 9. Domain and TLS (T9.7)

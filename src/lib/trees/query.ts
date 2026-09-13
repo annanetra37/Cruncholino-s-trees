@@ -27,6 +27,7 @@ export type TreeRow = {
   age_years_estimate: number | null;
   condition: string;
   fruit_quality: string;
+  reachability: string;
   notes: string | null;
   address_line: string | null;
   city: string | null;
@@ -84,6 +85,10 @@ export function buildTreeWhere(filters: Partial<TreeFilters>): Prisma.Sql {
   }
   if (filters.fruit_quality?.length) {
     clauses.push(Prisma.sql`t.fruit_quality::text IN (${Prisma.join(filters.fruit_quality)})`);
+  }
+
+  if (filters.reachability?.length) {
+    clauses.push(Prisma.sql`t.reachability::text IN (${Prisma.join(filters.reachability)})`);
   }
   if (filters.city) {
     clauses.push(Prisma.sql`t.city ILIKE ${filters.city}`);
@@ -171,6 +176,7 @@ const TREE_COLUMNS = Prisma.sql`
   t.age_years_estimate,
   t.condition::text AS condition,
   t.fruit_quality::text AS fruit_quality,
+  t.reachability::text AS reachability,
   t.notes,
   t.address_line,
   t.city,
@@ -190,7 +196,9 @@ const TREE_COLUMNS = Prisma.sql`
   (SELECT COUNT(*)::int FROM tree_photos p WHERE p.tree_id = t.id) AS photo_count
 `;
 
-export async function findTrees(filters: TreeFilters): Promise<{ items: TreeRow[]; total: number }> {
+export async function findTrees(
+  filters: TreeFilters,
+): Promise<{ items: TreeRow[]; total: number }> {
   const where = buildTreeWhere(filters);
   const offset = (filters.page - 1) * filters.page_size;
 
@@ -239,6 +247,7 @@ export type GeoJsonRow = {
   condition: string;
   age_band: string;
   fruit_quality: string;
+  reachability: string;
   city: string | null;
 };
 
@@ -257,6 +266,7 @@ export async function findTreesForMap(
       t.condition::text AS condition,
       t.age_band::text AS age_band,
       t.fruit_quality::text AS fruit_quality,
+      t.reachability::text AS reachability,
       t.city
     FROM trees t
     JOIN species s ON s.id = t.species_id

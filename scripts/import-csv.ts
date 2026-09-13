@@ -10,8 +10,9 @@
  *   pnpm import:csv survey.csv --commit --force  # writes the valid rows anyway
  *
  * Expected columns (header row required):
- *   species_slug, latitude, longitude, condition, fruit_quality, age_band,
- *   age_years_estimate, notes, address_line, city, region, country_code
+ *   species_slug, latitude, longitude, condition, fruit_quality, reachability,
+ *   age_band, age_years_estimate, notes, address_line, city, region,
+ *   country_code
  */
 import { readFileSync } from 'node:fs';
 import {
@@ -21,6 +22,7 @@ import {
   GeocodeStatus,
   LocationSource,
   PrismaClient,
+  Reachability,
   TreeStatus,
 } from '@prisma/client';
 import { z } from 'zod';
@@ -84,6 +86,7 @@ const rowSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180),
   condition: z.enum(Condition).default(Condition.UNKNOWN),
   fruit_quality: z.enum(FruitQuality).default(FruitQuality.UNKNOWN),
+  reachability: z.enum(Reachability).default(Reachability.UNKNOWN),
   age_band: z.enum(AgeBand).default(AgeBand.UNKNOWN),
   age_years_estimate: z.coerce.number().int().min(0).max(2000).optional(),
   notes: z.string().trim().max(2000).optional(),
@@ -160,7 +163,9 @@ async function main() {
   }
 
   if (problems.length > 0 && !force) {
-    console.error('\nRefusing to import a file with problems. Fix them, or pass --force to import only the valid rows.');
+    console.error(
+      '\nRefusing to import a file with problems. Fix them, or pass --force to import only the valid rows.',
+    );
     process.exitCode = 1;
     return;
   }
@@ -172,6 +177,7 @@ async function main() {
       longitude: row.longitude,
       condition: row.condition,
       fruitQuality: row.fruit_quality,
+      reachability: row.reachability,
       ageBand: row.age_band,
       ageYearsEstimate: row.age_years_estimate,
       notes: row.notes,

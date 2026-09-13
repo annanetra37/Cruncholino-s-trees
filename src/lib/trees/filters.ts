@@ -4,7 +4,7 @@
  * "the same filters" is a fact about the code rather than a promise in a
  * document.
  */
-import { AgeBand, Condition, FruitQuality, TreeStatus } from '@prisma/client';
+import { AgeBand, Condition, FruitQuality, Reachability, TreeStatus } from '@prisma/client';
 import { z } from 'zod';
 import { env } from '@/env';
 
@@ -74,6 +74,7 @@ export const treeFilterSchema = z.object({
   age_band: multi(z.enum(AgeBand)),
   condition: multi(z.enum(Condition)),
   fruit_quality: multi(z.enum(FruitQuality)),
+  reachability: multi(z.enum(Reachability)),
   status: multi(z.enum(TreeStatus)),
   city: z.string().trim().min(1).optional(),
   region: z.string().trim().min(1).optional(),

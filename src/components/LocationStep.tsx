@@ -76,6 +76,34 @@ function accuracyData(
   };
 }
 
+type PlaceResult = {
+  label: string;
+  latitude: number;
+  longitude: number;
+};
+
+/**
+ * Reads a typed pair of coordinates, or returns null if the text is not one.
+ *
+ * Accepts what people actually paste: "40.18726, 44.51520", the same with a
+ * space or a semicolon, and the degree signs that come off a phone's share
+ * sheet. Anything else is treated as an address to search for, so this has to
+ * be strict about what it claims — a half-parsed "Abovyan 12" placing a pin in
+ * the Gulf of Guinea is worse than no answer.
+ */
+export function parseCoordinates(text: string): { latitude: number; longitude: number } | null {
+  const cleaned = text.replace(/[°\s]+/g, ' ').trim();
+  const match = /^(-?\d{1,3}(?:\.\d+)?)\s*[,;]?\s+(-?\d{1,3}(?:\.\d+)?)$/.exec(cleaned);
+  if (!match) return null;
+
+  const latitude = Number.parseFloat(match[1] as string);
+  const longitude = Number.parseFloat(match[2] as string);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+
+  return { latitude, longitude };
+}
+
 export function LocationStep({ value, onChange }: Props) {
   const t = useT();
   const container = useRef<HTMLDivElement>(null);
@@ -87,6 +115,10 @@ export function LocationStep({ value, onChange }: Props) {
   const [address, setAddress] = useState<string | null>(null);
   const [addressState, setAddressState] = useState<'idle' | 'looking' | 'found' | 'none'>('idle');
   const [mapError, setMapError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<PlaceResult[] | null>(null);
+  const [searchError, setSearchError] = useState<'none' | 'failed' | null>(null);
   // One fallback only: if the built-in style fails too, the error is real.
   const usingFallback = useRef(false);
   const latestValue = useRef(value);
@@ -352,6 +384,46 @@ export function LocationStep({ value, onChange }: Props) {
     };
   }, [lat, lng]);
 
+  const moveTo = useCallback(
+    (latitude: number, longitude: number) => {
+      // Typed or picked, the position is the contributor's own claim rather
+      // than a measurement, so it carries no accuracy — showing a radius here
+      // would invent a precision nobody asserted.
+      onChange({ latitude, longitude, accuracyM: null, source: 'MANUAL' });
+      setResults(null);
+      setSearchError(null);
+    },
+    [onChange],
+  );
+
+  const runSearch = useCallback(async () => {
+    const text = search.trim();
+    if (!text) return;
+
+    // Coordinates need no lookup: they are already a point. This also means
+    // typing a pair still works when the geocoder is unreachable.
+    const typed = parseCoordinates(text);
+    if (typed) {
+      moveTo(typed.latitude, typed.longitude);
+      return;
+    }
+
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const response = await fetch(`/api/geocode/search?q=${encodeURIComponent(text)}`);
+      const body = response.ok ? ((await response.json()) as { results: PlaceResult[] }) : null;
+      const found = body?.results ?? [];
+      setResults(found);
+      setSearchError(found.length ? null : 'none');
+    } catch {
+      setResults(null);
+      setSearchError('failed');
+    } finally {
+      setSearching(false);
+    }
+  }, [moveTo, search]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -422,6 +494,61 @@ export function LocationStep({ value, onChange }: Props) {
           {t(messageKey)}
         </p>
       ) : null}
+
+      {/* The third way in, after GPS and tapping the map: say where it is.
+          One field rather than two, because a pasted "40.18726, 44.51520" and
+          a typed street name are the same intent — put the pin there. */}
+      <div className="space-y-2">
+        <label className="block">
+          <span className="field-label">{t('location.searchLabel')}</span>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="field-input"
+              value={search}
+              placeholder={t('location.searchPlaceholder')}
+              data-testid="location-search"
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                // Inside a form, Enter would submit the whole tree.
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                void runSearch();
+              }}
+            />
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              disabled={searching || search.trim().length === 0}
+              onClick={() => void runSearch()}
+            >
+              {searching ? t('location.searching') : t('common.search')}
+            </button>
+          </div>
+        </label>
+
+        {results?.length ? (
+          <ul className="divide-y divide-stone-200 rounded-lg border border-stone-300">
+            {results.map((place) => (
+              <li key={`${place.latitude},${place.longitude},${place.label}`}>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-stone-50"
+                  onClick={() => moveTo(place.latitude, place.longitude)}
+                >
+                  {place.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {searchError ? (
+          <p className="text-sm text-stone-500">
+            {searchError === 'none' ? t('location.searchNone') : t('location.searchFailed')}
+          </p>
+        ) : null}
+      </div>
 
       {mapError ? (
         <p
